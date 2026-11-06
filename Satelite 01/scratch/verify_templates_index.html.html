@@ -1,0 +1,2141 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <script>
+    window.__errors = [];
+    window.onerror = function(msg, url, line, col, err) {
+        window.__errors.push({msg: msg, line: line, col: col});
+    };
+    </script>
+    
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Thailand Environment Intelligence — แผนที่สิ่งแวดล้อมประเทศไทย</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- Thailand 77 Provinces GeoJSON (Local Bundle) -->
+  <script src="thailand-data.js"></script>
+
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      font-family: 'Inter', 'Sarabun', -apple-system, sans-serif;
+      background: #070d18;
+      margin: 0; padding: 0;
+      overflow: hidden;
+    }
+
+    html, body { height: 100%; }
+
+    #map {
+      position: fixed;
+      inset: 0;
+      background: #060e1c;
+      z-index: 1;
+    }
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.14); border-radius: 10px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.25); }
+
+    /* ── Top bar ── */
+    #topbar {
+      position: fixed;
+      top: 16px;
+      left: 16px;
+      right: 460px;
+      z-index: 900;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      pointer-events: none;
+    }
+    #topbar > * { pointer-events: auto; }
+
+    .tb-pill {
+      background: rgba(8, 15, 32, 0.90);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(255,255,255,0.09);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      color: #fff;
+      white-space: nowrap;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    }
+
+    /* ── Navigation / Layer Panel (bottom left) ── */
+    #nav-panel {
+      position: fixed;
+      bottom: 24px;
+      left: 20px;
+      z-index: 900;
+      width: 370px;
+      max-width: calc(100vw - 490px);
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .nav-card {
+      background: rgba(8, 15, 32, 0.94);
+      backdrop-filter: blur(24px);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 18px;
+      color: #fff;
+      overflow: hidden;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.5);
+    }
+
+    .nav-header {
+      padding: 13px 16px;
+      border-bottom: 1px solid rgba(255,255,255,0.07);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: rgba(255,255,255,0.02);
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .category-accordion-btn {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      background: transparent;
+      border: none;
+      border-radius: 10px;
+      color: #e2e8f0;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      text-align: left;
+    }
+    .category-accordion-btn:hover {
+      background: rgba(255,255,255,0.05);
+      color: #fff;
+    }
+    .category-accordion-btn.open {
+      background: rgba(56,189,248,0.08);
+      color: #38bdf8;
+    }
+
+    .sub-item-btn {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      padding: 8px 12px 8px 28px;
+      margin: 2px 0;
+      border-radius: 9px;
+      font-size: 12px;
+      color: #94a3b8;
+      border: 1px solid transparent;
+      background: transparent;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      text-align: left;
+    }
+    .sub-item-btn:hover {
+      background: rgba(255,255,255,0.04);
+      color: #f1f5f9;
+      transform: translateX(2px);
+    }
+    .sub-item-btn.active {
+      background: rgba(56,189,248,0.14);
+      color: #38bdf8;
+      border-color: rgba(56,189,248,0.3);
+      font-weight: 600;
+    }
+
+    /* Currency Badges */
+    .badge-realtime {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 9px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 9999px;
+      background: rgba(34, 197, 94, 0.15);
+      color: #4ade80;
+      border: 1px solid rgba(34, 197, 94, 0.3);
+      white-space: nowrap;
+    }
+    .badge-periodic {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 9px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 9999px;
+      background: rgba(234, 179, 8, 0.15);
+      color: #facc15;
+      border: 1px solid rgba(234, 179, 8, 0.3);
+      white-space: nowrap;
+    }
+    .badge-historical {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 9px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 9999px;
+      background: rgba(14, 165, 233, 0.15);
+      color: #38bdf8;
+      border: 1px solid rgba(14, 165, 233, 0.3);
+      white-space: nowrap;
+    }
+
+    /* ── Radar timeline ── */
+    #radar-timeline {
+      padding: 12px 14px;
+      border-top: 1px solid rgba(255,255,255,0.08);
+      background: rgba(15, 23, 42, 0.4);
+    }
+
+    /* ── Sidebar ── */
+    #sidebar {
+      position: fixed;
+      top: 0; right: 0;
+      width: 440px;
+      height: 100%;
+      background: #fff;
+      z-index: 950;
+      display: flex;
+      flex-direction: column;
+      box-shadow: -6px 0 45px rgba(0,0,0,0.45);
+    }
+
+    #sidebar-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+    }
+
+    /* ── Province shapes ── */
+    .province-path {
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .province-path:hover {
+      filter: brightness(1.35) drop-shadow(0 0 10px rgba(255,255,255,0.7));
+    }
+
+    .thailand-national-outline {
+      filter: drop-shadow(0 0 6px rgba(255,255,255,0.8)) drop-shadow(0 0 14px rgba(56,189,248,0.4));
+      pointer-events: none;
+    }
+
+    /* ── Filter highlight pill active state ── */
+    .filter-pill {
+      box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+    }
+    .filter-pill:hover {
+      transform: translateY(-1px);
+    }
+
+    /* ── Leaflet zoom control ── */
+    .leaflet-control-zoom {
+      border: none !important;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.4) !important;
+    }
+    .leaflet-control-zoom a {
+      background: rgba(8,15,32,0.92) !important;
+      border: 1px solid rgba(255,255,255,0.1) !important;
+      border-radius: 9px !important;
+      color: #cbd5e1 !important;
+      margin-bottom: 5px !important;
+      width: 34px !important;
+      height: 34px !important;
+      line-height: 34px !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      backdrop-filter: blur(12px);
+      transition: all 0.15s ease;
+    }
+    .leaflet-control-zoom a:hover {
+      background: rgba(30,41,59,0.95) !important;
+      color: #38bdf8 !important;
+      border-color: rgba(56,189,248,0.3) !important;
+    }
+
+    /* Dam & Station Markers */
+    .dam-marker-pin {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: #0284c7;
+      border: 2px solid #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 10px rgba(2,132,199,0.8);
+      color: #fff;
+      font-size: 11px;
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+    .dam-marker-pin:hover {
+      transform: scale(1.25);
+    }
+
+    .station-marker-pin {
+      width: 22px;
+      height: 22px;
+      border-radius: 6px;
+      background: #8b5cf6;
+      border: 2px solid #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 8px rgba(139,92,246,0.8);
+      color: #fff;
+      font-size: 10px;
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+    .station-marker-pin:hover {
+      transform: scale(1.25);
+    }
+
+    .hotspot-marker-pin {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #ef4444;
+      border: 2px solid #fff;
+      box-shadow: 0 0 12px #ef4444, 0 0 20px #f97316;
+      animation: pulse 1.2s infinite;
+      cursor: pointer;
+    }
+
+    @keyframes ping {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(1.4); }
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.6; transform: scale(1.25); }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Map -->
+  <div id="map"></div>
+
+  <!-- ═══ TOP BAR ═══ -->
+  <div id="topbar">
+
+    <!-- Brand -->
+    <div class="tb-pill px-4 py-2.5 gap-3">
+      <div style="width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,#0ea5e9,#6366f1);display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0;box-shadow:0 0 12px rgba(14,165,233,0.4);">
+        🛰️
+      </div>
+      <div>
+        <div style="font-size:13px;font-weight:700;color:#fff;letter-spacing:0.01em;">Thailand Environment Intelligence</div>
+        <div style="font-size:11px;color:#94a3b8;margin-top:1px;">ระบบแผนที่สิ่งแวดล้อมและทรัพยากรไทย • 77 จังหวัด</div>
+      </div>
+    </div>
+
+    <!-- Base layer toggle -->
+    <div class="tb-pill p-1 gap-0.5">
+      <button id="btn-sat" onclick="setBaseLayer('satellite')"
+        style="padding:7px 12px;border-radius:9px;font-size:12px;font-weight:600;background:rgba(56,189,248,0.15);color:#38bdf8;border:none;cursor:pointer;transition:all 0.15s;">
+        🛰 ดาวเทียม
+      </button>
+      <button id="btn-dark" onclick="setBaseLayer('dark')"
+        style="padding:7px 12px;border-radius:9px;font-size:12px;font-weight:500;color:#64748b;border:none;cursor:pointer;background:none;transition:all 0.15s;">
+        🌑 กลางคืน
+      </button>
+    </div>
+
+    <!-- Search -->
+    <div class="tb-pill px-3 gap-2" style="flex:1;min-width:0;">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;">
+        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+      </svg>
+      <input id="search-input" type="text" placeholder="ค้นหาจังหวัด เช่น เชียงใหม่, อยุธยา, ภูเก็ต..."
+        style="flex:1;border:none;outline:none;background:transparent;color:#fff;font-size:13px;font-family:inherit;min-width:0;"
+        onkeydown="handleSearch(event)">
+    </div>
+
+    <!-- Live Radar Quick Toggle -->
+    <div class="tb-pill p-1">
+      <button id="btn-radar" onclick="toggleRadarQuick()"
+        style="display:flex;align-items:center;gap:7px;padding:7px 12px;border-radius:9px;font-size:12px;font-weight:500;color:#94a3b8;border:none;cursor:pointer;background:transparent;transition:all 0.15s;">
+        <span id="radar-dot" style="width:7px;height:7px;border-radius:50%;background:#64748b;flex-shrink:0;"></span>
+        เรดาร์ฝนสด
+      </button>
+    </div>
+
+  </div>
+
+  <!-- ═══ EXPANDABLE DROPDOWN NAVIGATION PANEL (bottom-left) ═══ -->
+  <div id="nav-panel">
+    <div class="nav-card">
+
+      <!-- Panel header / Active indicator & Collapse toggle -->
+      <div class="nav-header" onclick="toggleMenuCollapse()">
+        <div style="display:flex;align-items:center;gap:10px;min-width:0;">
+          <div id="active-icon-box" style="width:30px;height:30px;border-radius:8px;background:rgba(56,189,248,0.15);display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;">
+            💨
+          </div>
+          <div style="min-width:0;">
+            <div style="font-size:10px;text-transform:uppercase;letter-spacing:0.06em;color:#94a3b8;font-weight:600;display:flex;align-items:center;gap:6px;">
+              <span id="active-cat-name">คุณภาพอากาศ</span>
+              <span id="active-currency-badge" class="badge-realtime">🟢 เรียลไทม์</span>
+            </div>
+            <div id="active-sub-name" style="font-size:13px;font-weight:700;color:#fff;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+              ความเข้มข้น PM 2.5
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+          <span id="collapse-chevron" style="font-size:12px;color:#94a3b8;transition:transform 0.2s;">▲</span>
+        </div>
+      </div>
+
+      <!-- Accordion Categories Container -->
+      <div id="accordion-body" style="padding:6px;max-height:50vh;overflow-y:auto;">
+        <!-- Dynamically populated by renderDropdownMenu() -->
+      </div>
+
+      <!-- Radar Timeline — only visible when Doppler radar is active -->
+      <div id="radar-timeline" style="display:none;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+          <div style="display:flex;align-items:center;gap:6px;">
+            <span style="font-size:12px;font-weight:700;color:#38bdf8;">Doppler Radar TMD</span>
+            <span id="radar-time-label" style="font-size:11px;color:#cbd5e1;font-variant-numeric:tabular-nums;">—</span>
+          </div>
+          <span id="frame-counter" style="font-size:10px;color:#94a3b8;font-variant-numeric:tabular-nums;"></span>
+        </div>
+        <!-- Color scale -->
+        <div style="height:5px;border-radius:4px;background:linear-gradient(to right,#1e40af,#06b6d4,#22c55e,#eab308,#f97316,#ef4444,#d946ef);margin-bottom:4px;"></div>
+        <div style="display:flex;justify-content:space-between;font-size:9px;color:#94a3b8;margin-bottom:8px;">
+          <span>ปรอยๆ (15)</span><span>ปานกลาง (30)</span><span>หนัก (45)</span><span>พายุ (>55 dBZ)</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <button id="btn-play" onclick="toggleRadarAnimation()"
+            style="padding:4px 10px;border-radius:7px;background:rgba(56,189,248,0.18);color:#38bdf8;border:1px solid rgba(56,189,248,0.3);font-size:11px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:4px;">
+            <span id="play-icon">▶</span><span id="play-text">เล่น</span>
+          </button>
+          <input id="radar-slider" type="range" min="0" max="12" value="12"
+            oninput="changeRadarFrame(this.value)"
+            style="flex:1;accent-color:#38bdf8;height:4px;cursor:pointer;">
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Filter highlight pills — appear below the navigation card -->
+    <div id="filter-bar" style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px;">
+      <!-- Populated dynamically -->
+    </div>
+  </div>
+
+  <!-- ═══ RIGHT SIDEBAR ═══ -->
+  <div id="sidebar">
+    <!-- Header -->
+    <div style="background:linear-gradient(135deg,#0f172a,#0c1a2e);color:#fff;padding:18px 20px 14px;border-bottom:1px solid rgba(255,255,255,0.06);">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+        <span id="sidebar-badge"
+          style="display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;padding:3px 10px;background:rgba(56,189,248,0.15);color:#38bdf8;border-radius:6px;border:1px solid rgba(56,189,248,0.25);text-transform:uppercase;letter-spacing:0.06em;">
+          🇹🇭 77 จังหวัด
+        </span>
+        <span id="source-badge" style="font-size:10px;color:#94a3b8;display:flex;align-items:center;gap:4px;">
+          <span style="width:6px;height:6px;border-radius:50%;background:#34d399;animation:pulse 2s infinite;"></span>
+          <span id="agency-label">PCD · Open-Meteo · GISTDA</span>
+        </span>
+      </div>
+      <div id="sidebar-title" style="font-size:17px;font-weight:700;color:#fff;line-height:1.3;">ระบบสารสนเทศสิ่งแวดล้อมไทย</div>
+      <div id="sidebar-sub" style="font-size:12px;color:#94a3b8;margin-top:4px;">คลิกจังหวัดหรือจุดบนแผนที่เพื่อดูการวิเคราะห์สด</div>
+    </div>
+
+    <!-- Status strip -->
+    <div id="status-bar" style="background:#0f172a;padding:8px 20px;border-bottom:1px solid rgba(255,255,255,0.05);display:flex;align-items:center;justify-content:space-between;">
+      <div style="display:flex;align-items:center;gap:7px;font-size:12px;color:#94a3b8;">
+        <span id="status-dot" style="width:7px;height:7px;border-radius:50%;background:#38bdf8;"></span>
+        <span id="status-text">แสดงข้อมูลทั้งหมด 77 จังหวัด</span>
+      </div>
+      <span id="status-count" style="font-size:11px;font-weight:700;color:#38bdf8;">77/77</span>
+    </div>
+
+    <!-- Scrollable content -->
+    <div id="sidebar-content" style="flex:1;overflow-y:auto;padding:16px;"></div>
+
+    <!-- Footer -->
+    <div style="padding:12px 20px;border-top:1px solid #f1f5f9;background:#fafafa;display:flex;align-items:center;justify-content:space-between;">
+      <button onclick="openLimitationsModal()"
+        style="font-size:12px;color:#0ea5e9;font-weight:600;background:none;border:none;cursor:pointer;display:flex;align-items:center;gap:5px;">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        แหล่งข้อมูล ความโปร่งใส & ระเบียบวิธี
+      </button>
+      <span style="font-size:11px;color:#94a3b8;font-weight:600;">v2.5 Live</span>
+    </div>
+  </div>
+
+  <!-- ═══ METHODOLOGY & DATA SOURCES MODAL ═══ -->
+  <div id="limitations-modal" style="display:none;position:fixed;inset:0;background:rgba(2,6,23,0.82);backdrop-filter:blur(8px);z-index:2000;align-items:center;justify-content:center;">
+    <div style="background:#fff;border-radius:20px;padding:26px;width:100%;max-width:580px;margin:0 20px;max-height:85vh;overflow-y:auto;font-size:12px;color:#374151;box-shadow:0 20px 60px rgba(0,0,0,0.4);">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;border-bottom:1px solid #f1f5f9;padding-bottom:12px;">
+        <div>
+          <div style="font-size:16px;font-weight:700;color:#0f172a;">แหล่งข้อมูลและระเบียบวิธีวิชาการ</div>
+          <div style="font-size:11px;color:#64748b;margin-top:2px;">ความโปร่งใสของข้อมูลสิ่งแวดล้อม (Data Transparency)</div>
+        </div>
+        <button onclick="closeLimitationsModal()" style="background:#f1f5f9;border:none;width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:14px;color:#64748b;display:flex;align-items:center;justify-content:center;">✕</button>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:12px;">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
+            <span class="badge-realtime">🟢 เรียลไทม์ (Real-time)</span>
+            <strong style="color:#166534;">ข้อมูลสดตรวจวัดต่อเนื่อง</strong>
+          </div>
+          <p style="color:#15803d;line-height:1.6;margin:0;">
+            • <strong>Doppler Radar:</strong> กรมอุตุนิยมวิทยา (TMD) และ RainViewer Open API ตรวจวัดค่าสะท้อน dBZ ทุก 10 นาที<br>
+            • <strong>คุณภาพอากาศสด:</strong> Open-Meteo Air Quality ร่วมกับดาวเทียมยุโรป Copernicus CAMS และสถานี PCD ตรวจวัด PM2.5, PM10, AQI ทุก 1 ชั่วโมง<br>
+            • <strong>จุดความร้อนไฟป่า:</strong> NASA FIRMS (Suomi NPP/VIIRS) ตรวจจับความร้อนอินฟราเรดสด
+          </p>
+        </div>
+
+        <div style="background:#fefce8;border:1px solid #fef08a;border-radius:12px;padding:12px;">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
+            <span class="badge-periodic">🟡 อัปเดตตามรอบ (Periodic)</span>
+            <strong style="color:#854d0e;">ดาวเทียมและรายงานประจำวัน/สัปดาห์</strong>
+          </div>
+          <p style="color:#713f12;line-height:1.6;margin:0;">
+            • <strong>อ่างเก็บน้ำ 35 แห่ง:</strong> ศูนย์ปฏิบัติการน้ำอัจฉริยะ กรมชลประทาน (RID SWOC) รายงานปริมาณน้ำกักเก็บรายวัน<br>
+            • <strong>พืชพรรณ NDVI:</strong> ดาวเทียม ESA Sentinel-2 (ความละเอียด 10m) โคจรซ้ำทุก 5 วัน<br>
+            • <strong>อุณหภูมิพื้นดิน LST:</strong> ดาวเทียม Landsat 8/9 TIRS และ MODIS โคจรซ้ำทุก 8-16 วัน<br>
+            • <strong>คุณภาพน้ำผิวดิน:</strong> กรมควบคุมมลพิษ (PCD) ตรวจวัดดัชนี WQI และแบคทีเรียรอบ 3-6 เดือน
+          </p>
+        </div>
+
+        <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:12px;padding:12px;">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
+            <span class="badge-historical">🔵 ข้อมูลสถิติ/พื้นฐาน (Baseline & Historical)</span>
+            <strong style="color:#1e40af;">แผนที่ฐานและสถิติสะสมระยะยาว</strong>
+          </div>
+          <p style="color:#1e3a8a;line-height:1.6;margin:0;">
+            • <strong>พื้นที่น้ำท่วมซ้ำซาก:</strong> สำนักงานพัฒนาเทคโนโลยีอวกาศและภูมิสารสนเทศ (GISTDA) สถิติดาวเทียมรอบ 10 ปี<br>
+            • <strong>การใช้ประโยชน์ที่ดิน:</strong> กรมพัฒนาที่ดิน (LDD) จำแนกป่าไม้ เกษตรกรรม และชุมชนเมือง<br>
+            • <strong>โครงข่ายแม่น้ำและคลอง:</strong> ข้อมูลแม่น้ำสายหลักและลำคลองกรุงเทพมหานครจากกรมทรัพยากรน้ำและ OpenStreetMap
+          </p>
+        </div>
+      </div>
+
+      <div style="margin-top:18px;text-align:right;">
+        <button onclick="closeLimitationsModal()"
+          style="padding:9px 24px;background:#0f172a;color:#fff;border:none;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;transition:background 0.15s;">
+          รับทราบข้อมูล
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+// ═══════════════════════════════════════════════════════
+//  CATEGORIES & SUBCATEGORIES CONFIGURATION
+// ═══════════════════════════════════════════════════════
+const CATEGORIES = [
+  {
+    id: 'air',
+    name: 'คุณภาพอากาศ',
+    name_en: 'Air Quality',
+    icon: '💨',
+    color: '#06b6d4',
+    subcategories: [
+      {
+        id: 'pm25',
+        name: 'ความเข้มข้น PM 2.5',
+        name_en: 'PM2.5 Concentration',
+        icon: '🌫️',
+        currency: 'realtime',
+        currencyLabel: 'เรียลไทม์',
+        source: 'Open-Meteo & กรมควบคุมมลพิษ (PCD)',
+        unit: 'µg/m³',
+        description: 'ระดับฝุ่นละอองขนาดเล็กมาก (≤2.5 ไมครอน) ตามเกณฑ์มาตรฐานกรมควบคุมมลพิษ',
+        filters: [
+          { id: 'all', label: 'ทั้งหมด', color: '#38bdf8' },
+          { id: 'good', label: 'ดีมาก-ดี (≤25)', color: '#22c55e' },
+          { id: 'moderate', label: 'ปานกลาง (26-37.5)', color: '#eab308' },
+          { id: 'high', label: 'เริ่มมีผล (37.6-75)', color: '#f97316' },
+          { id: 'critical', label: 'มีผลต่อสุขภาพ (>75)', color: '#ef4444' }
+        ]
+      },
+      {
+        id: 'pm10',
+        name: 'ความเข้มข้น PM 10',
+        name_en: 'PM10 Concentration',
+        icon: '🌪️',
+        currency: 'realtime',
+        currencyLabel: 'เรียลไทม์',
+        source: 'Open-Meteo & PCD CAMS',
+        unit: 'µg/m³',
+        description: 'ฝุ่นละอองขนาดหยาบไม่เกิน 10 ไมครอน จากฝุ่นถนน การก่อสร้าง และไอเสีย',
+        filters: [
+          { id: 'all', label: 'ทั้งหมด', color: '#38bdf8' },
+          { id: 'good', label: 'ดี (≤50)', color: '#22c55e' },
+          { id: 'moderate', label: 'ปานกลาง (51-80)', color: '#eab308' },
+          { id: 'critical', label: 'เกินมาตรฐาน (>80)', color: '#ef4444' }
+        ]
+      },
+      {
+        id: 'aqi',
+        name: 'ดัชนีคุณภาพอากาศ (AQI)',
+        name_en: 'Air Quality Index',
+        icon: '🫁',
+        currency: 'realtime',
+        currencyLabel: 'เรียลไทม์',
+        source: 'US EPA & Thai PCD Standard',
+        unit: 'AQI Score',
+        description: 'ดัชนีรวมคุณภาพอากาศประเมินความปลอดภัยต่อสุขภาพประชาชนในชีวิตประจำวัน',
+        filters: [
+          { id: 'all', label: 'ทั้งหมด', color: '#38bdf8' },
+          { id: 'good', label: '0-50 คุณภาพดีมาก', color: '#22c55e' },
+          { id: 'moderate', label: '51-100 ปานกลาง', color: '#eab308' },
+          { id: 'high', label: '101-150 ระวัง', color: '#f97316' },
+          { id: 'critical', label: '>150 อันตราย', color: '#dc2626' }
+        ]
+      }
+    ]
+  },
+  {
+    id: 'water_quality',
+    name: 'คุณภาพน้ำ',
+    name_en: 'Water Quality',
+    icon: '🧪',
+    color: '#3b82f6',
+    subcategories: [
+      {
+        id: 'wqi',
+        name: 'ดัชนีและอัตรามลพิษทางน้ำ (WQI)',
+        name_en: 'Water Pollution Rate',
+        icon: '💧',
+        currency: 'periodic',
+        currencyLabel: 'อัปเดตตามรอบ',
+        source: 'กรมควบคุมมลพิษ (PCD) ลุ่มน้ำ 25 ลุ่ม',
+        unit: 'คะแนน WQI',
+        description: 'ประเมินความสะอาดของแหล่งน้ำผิวดิน และอัตราการปนเปื้อนสารอินทรีย์และแบคทีเรีย',
+        filters: [
+          { id: 'all', label: 'ทั้งหมด', color: '#38bdf8' },
+          { id: 'safe', label: 'ดี (≥70)', color: '#22c55e' },
+          { id: 'moderate', label: 'พอใช้ (50-69)', color: '#eab308' },
+          { id: 'critical', label: 'เสื่อมโทรม (<50)', color: '#ef4444' }
+        ]
+      },
+      {
+        id: 'water_stations',
+        name: 'สถานีตรวจวัดคุณภาพน้ำ (pH, DO)',
+        name_en: 'Water Quality Indicators',
+        icon: '🔬',
+        currency: 'periodic',
+        currencyLabel: 'สถานี BMA/PCD',
+        source: 'สำนักการระบายน้ำ กทม. & กรมควบคุมมลพิษ',
+        unit: 'DO mg/L & pH',
+        description: 'สถานีตรวจวัดอัตโนมัติแสดงค่าออกซิเจนละลาย (DO), ความเป็นกรด-ด่าง (pH) ในคลองสายหลัก',
+        filters: [
+          { id: 'all', label: 'ทั้งหมด', color: '#38bdf8' },
+          { id: 'safe', label: 'DO ปกติ (>4.0)', color: '#22c55e' },
+          { id: 'critical', label: 'DO ต่ำ (<3.0)', color: '#ef4444' }
+        ]
+      },
+      {
+        id: 'turbidity',
+        name: 'ความขุ่นของน้ำ (Turbidity)',
+        name_en: 'Water Turbidity',
+        icon: '☕',
+        currency: 'periodic',
+        currencyLabel: 'อัปเดตตามรอบ',
+        source: 'การประปานครหลวง & สถาบันสารสนเทศทรัพยากรน้ำ',
+        unit: 'NTU',
+        description: 'ปริมาณตะกอนแขวนลอยและความใส-ขุ่นของน้ำเพื่อการผลิตน้ำประปาและการเกษตร',
+        filters: [
+          { id: 'all', label: 'ทั้งหมด', color: '#38bdf8' },
+          { id: 'clear', label: 'น้ำใส (<25 NTU)', color: '#22c55e' },
+          { id: 'turbid', label: 'ขุ่นสูง (>50 NTU)', color: '#f97316' }
+        ]
+      },
+      {
+        id: 'waste_detection',
+        name: 'สภาพผิวน้ำ & AI ตรวจจับขยะลอยน้ำ',
+        name_en: 'Water Surface Conditions',
+        icon: '🛰️',
+        currency: 'realtime',
+        currencyLabel: 'AI วิเคราะห์สด',
+        source: 'Bangkok Smart Canal AI & ดาวเทียมสำรวจขยะ',
+        unit: 'การแจ้งเตือน',
+        description: 'ตรวจจับแพขยะลอยน้ำ ผักตบชวา และสิ่งกีดขวางทางระบายน้ำด้วยระบบ AI Computer Vision',
+        filters: [
+          { id: 'all', label: 'ทั้งหมด', color: '#38bdf8' },
+          { id: 'clean', label: 'ผิวน้ำปกติ', color: '#22c55e' },
+          { id: 'alert', label: 'ตรวจพบขยะสะสม', color: '#ef4444' }
+        ]
+      }
+    ]
+  },
+  {
+    id: 'water_resources',
+    name: 'ทรัพยากรน้ำ',
+    name_en: 'Water Resources',
+    icon: '🌊',
+    color: '#0284c7',
+    subcategories: [
+      {
+        id: 'water_distribution',
+        name: 'ความพร้อมและการกระจายน้ำกักเก็บ',
+        name_en: 'Water Distribution & Availability',
+        icon: '🚰',
+        currency: 'periodic',
+        currencyLabel: 'อัปเดตรายวัน',
+        source: 'ศูนย์ปฏิบัติการน้ำอัจฉริยะ กรมชลประทาน (RID SWOC)',
+        unit: '% น้ำกักเก็บ',
+        description: 'ร้อยละปริมาณน้ำใช้การได้เทียบกับความจุ พร้อมคะแนนความมั่นคงทางน้ำ 77 จังหวัด',
+        filters: [
+          { id: 'all', label: 'ทั้งหมด', color: '#38bdf8' },
+          { id: 'safe', label: 'น้ำสมบูรณ์ (≥80%)', color: '#22c55e' },
+          { id: 'moderate', label: 'เฝ้าระวัง (50-79%)', color: '#eab308' },
+          { id: 'high', label: 'ระวังสูง (30-49%)', color: '#f97316' },
+          { id: 'critical', label: 'วิกฤต (<30%)', color: '#ef4444' }
+        ]
+      },
+      {
+        id: 'reservoirs',
+        name: 'อ่างเก็บน้ำและเขื่อนสำคัญ 35 แห่ง',
+        name_en: 'Lakes and Reservoirs',
+        icon: '🏞️',
+        currency: 'periodic',
+        currencyLabel: 'รายวัน RID',
+        source: 'กรมชลประทาน & กฟผ. (EGAT)',
+        unit: 'ล้าน ลบ.ม. (MCM)',
+        description: 'พิกัดและระดับน้ำกักเก็บจริงของเขื่อนขนาดใหญ่ทั่วไทย เช่น ภูมิพล, สิริกิติ์, ศรีนครินทร์, ป่าสักฯ',
+        filters: [
+          { id: 'all', label: 'ทั้งหมด 35 แห่ง', color: '#38bdf8' },
+          { id: 'high', label: 'น้ำมาก (>80%)', color: '#06b6d4' },
+          { id: 'normal', label: 'ปกติ (50-80%)', color: '#22c55e' },
+          { id: 'low', label: 'น้ำน้อย (<50%)', color: '#ef4444' }
+        ]
+      },
+      {
+        id: 'rivers_canals',
+        name: 'แม่น้ำและโครงข่ายลำคลอง',
+        name_en: 'Rivers and Canals',
+        icon: '🛶',
+        currency: 'historical',
+        currencyLabel: 'ข้อมูลพื้นฐาน',
+        source: 'กรมทรัพยากรน้ำ & OpenStreetMap Hydrography',
+        unit: 'โครงข่ายน้ำ',
+        description: 'เส้นทางน้ำสายหลัก: เจ้าพระยา, โขง, มูล, ชี, ท่าจีน, แม่กลอง, ป่าสัก และคลองระบายน้ำ กทม.',
+        filters: [
+          { id: 'all', label: 'แสดงทั้งหมด', color: '#38bdf8' },
+          { id: 'main_rivers', label: 'แม่น้ำสายหลัก', color: '#38bdf8' },
+          { id: 'bangkok_canals', label: 'คลองระบายน้ำ กทม.', color: '#34d399' }
+        ]
+      }
+    ]
+  },
+  {
+    id: 'land_env',
+    name: 'ที่ดินและสิ่งแวดล้อม',
+    name_en: 'Land & Environment',
+    icon: '🌿',
+    color: '#10b981',
+    subcategories: [
+      {
+        id: 'ndvi',
+        name: 'ความสมบูรณ์ของพืชพรรณ (NDVI)',
+        name_en: 'Vegetation Health (NDVI)',
+        icon: '🌱',
+        currency: 'periodic',
+        currencyLabel: 'Sentinel-2 (5วัน)',
+        source: 'ดาวเทียม ESA Sentinel-2 (ความละเอียด 10m)',
+        unit: 'NDVI Index',
+        description: 'ดัชนีพืชพรรณความต่างพืชสีเขียว บ่งบอกความสมบูรณ์ของป่าไม้และพื้นที่เกษตรกรรม',
+        filters: [
+          { id: 'all', label: 'ทั้งหมด', color: '#38bdf8' },
+          { id: 'safe', label: 'สมบูรณ์สูง (≥0.6)', color: '#16a34a' },
+          { id: 'moderate', label: 'ปานกลาง (0.4-0.59)', color: '#84cc16' },
+          { id: 'critical', label: 'แห้งแล้ง (<0.4)', color: '#ca8a04' }
+        ]
+      },
+      {
+        id: 'land_use',
+        name: 'การใช้ประโยชน์ที่ดิน (Land Cover)',
+        name_en: 'Land Use & Cover',
+        icon: '🗺️',
+        currency: 'historical',
+        currencyLabel: 'ข้อมูลสถิติ LDD',
+        source: 'กรมพัฒนาที่ดิน (LDD) & GISTDA',
+        unit: 'ประเภทการใช้ที่ดิน',
+        description: 'การจำแนกพื้นที่ป่าไม้, พื้นที่เกษตรกรรม, พื้นที่ชุมชนเมือง และแหล่งน้ำ',
+        filters: [
+          { id: 'all', label: 'ทั้งหมด', color: '#38bdf8' },
+          { id: 'forest', label: 'พื้นที่ป่าไม้เด่น', color: '#15803d' },
+          { id: 'agri', label: 'พื้นที่เกษตรกรรมเด่น', color: '#eab308' },
+          { id: 'urban', label: 'เขตเมืองหนาแน่น', color: '#f97316' }
+        ]
+      },
+      {
+        id: 'urban_green',
+        name: 'พื้นที่สีเขียวในเมือง',
+        name_en: 'Urban Green Spaces',
+        icon: '🌳',
+        currency: 'periodic',
+        currencyLabel: 'อัปเดตตามรอบ',
+        source: 'กรุงเทพมหานคร & องค์กรปกครองส่วนท้องถิ่น',
+        unit: 'ตร.ม./คน',
+        description: 'อัตราส่วนสวนสาธารณะและพื้นที่สีเขียวต่อประชากร (เกณฑ์ WHO แนะนำ 9 ตร.ม./คน)',
+        filters: [
+          { id: 'all', label: 'ทั้งหมด', color: '#38bdf8' },
+          { id: 'meets_who', label: 'ผ่านเกณฑ์ WHO (≥9)', color: '#22c55e' },
+          { id: 'below_who', label: 'ต่ำกว่าเกณฑ์ (<9)', color: '#f59e0b' }
+        ]
+      },
+      {
+        id: 'surface_temp',
+        name: 'อุณหภูมิพื้นผิว (Land Surface Temp)',
+        name_en: 'Surface Temperature (LST)',
+        icon: '🌡️',
+        currency: 'periodic',
+        currencyLabel: 'Landsat 8/9 TIRS',
+        source: 'USGS/NASA Landsat 8/9 & Open-Meteo',
+        unit: '°C',
+        description: 'อุณหภูมิความร้อนแผ่ของพื้นผิวดิน อาคาร และต้นไม้จากดาวเทียมถ่ายภาพความร้อน',
+        filters: [
+          { id: 'all', label: 'ทั้งหมด', color: '#38bdf8' },
+          { id: 'cool', label: 'เย็น-สบาย (<30°C)', color: '#06b6d4' },
+          { id: 'warm', label: 'อบอุ่น (30-34°C)', color: '#eab308' },
+          { id: 'hot', label: 'ร้อนจัด (>34°C)', color: '#ef4444' }
+        ]
+      }
+    ]
+  },
+  {
+    id: 'risks',
+    name: 'ความเสี่ยงสิ่งแวดล้อม',
+    name_en: 'Environmental Risks',
+    icon: '⚠️',
+    color: '#ef4444',
+    subcategories: [
+      {
+        id: 'flood_risk',
+        name: 'พื้นที่เสี่ยงอุทกภัย / น้ำท่วมซ้ำซาก',
+        name_en: 'Flood-Prone Areas',
+        icon: '🌊',
+        currency: 'historical',
+        currencyLabel: 'สถิติ 10 ปี GISTDA',
+        source: 'GISTDA & กรมป้องกันและบรรเทาสาธารณภัย (ปภ.)',
+        unit: 'ระดับความเสี่ยง',
+        description: 'พื้นที่เสี่ยงน้ำท่วมซ้ำซาก ที่ราบลุ่มต่ำลุ่มน้ำเจ้าพระยา ลุ่มน้ำมูล-ชี และพื้นที่ชายฝั่ง',
+        filters: [
+          { id: 'all', label: 'ทั้งหมด', color: '#38bdf8' },
+          { id: 'safe', label: 'เสี่ยงต่ำ', color: '#22c55e' },
+          { id: 'moderate', label: 'เสี่ยงปานกลาง', color: '#eab308' },
+          { id: 'critical', label: 'เสี่ยงสูง/ท่วมซ้ำซาก', color: '#ef4444' }
+        ]
+      },
+      {
+        id: 'urban_heat',
+        name: 'เกาะความร้อนเมือง (Urban Heat Island)',
+        name_en: 'Urban Heat Hotspots',
+        icon: '🏙️',
+        currency: 'periodic',
+        currencyLabel: 'อัปเดตตามรอบ',
+        source: 'GISTDA Thermal Mapping & Land Cover',
+        unit: 'UHI Anomaly (°C)',
+        description: 'บริเวณที่อุณหภูมิในเขตเมืองสูงกว่าพื้นที่ชนบทโดยรอบจากการสะสมความร้อนของคอนกรีต',
+        filters: [
+          { id: 'all', label: 'ทั้งหมด', color: '#38bdf8' },
+          { id: 'normal', label: 'ปกติ (<+2°C)', color: '#22c55e' },
+          { id: 'hotspot', label: 'เกาะความร้อนสูง (≥+3°C)', color: '#ef4444' }
+        ]
+      },
+      {
+        id: 'drought_risk',
+        name: 'พื้นที่เสี่ยงภัยแล้ง / ความเปราะบาง',
+        name_en: 'Drought Vulnerability',
+        icon: '☀️',
+        currency: 'periodic',
+        currencyLabel: 'สัปดาห์นี้',
+        source: 'สถาบันสารสนเทศทรัพยากรน้ำ (สสน.) & GISTDA',
+        unit: 'ดัชนีภัยแล้ง',
+        description: 'พื้นที่เสี่ยงขาดแคลนน้ำเพื่อการเกษตรและอุปโภคบริโภค นอกเขตชลประทาน',
+        filters: [
+          { id: 'all', label: 'ทั้งหมด', color: '#38bdf8' },
+          { id: 'safe', label: 'เสี่ยงต่ำ', color: '#22c55e' },
+          { id: 'moderate', label: 'เฝ้าระวัง', color: '#eab308' },
+          { id: 'critical', label: 'เสี่ยงภัยแล้งสูง', color: '#dc2626' }
+        ]
+      },
+      {
+        id: 'rain_radar',
+        name: 'เรดาร์ฝนสด Doppler (TMD)',
+        name_en: 'Doppler Weather Radar',
+        icon: '🌧️',
+        currency: 'realtime',
+        currencyLabel: 'เรียลไทม์ 10 นาที',
+        source: 'กรมอุตุนิยมวิทยา (TMD) & RainViewer Doppler Composite',
+        unit: 'dBZ (mm/hr)',
+        description: 'ภาพสะท้อนคลื่นเรดาร์ตรวจจับเมฆฝนและพายุแบบเคลื่อนไหวสดครอบคลุมทั่วประเทศไทย',
+        filters: [
+          { id: 'all', label: 'ทั้งหมด', color: '#38bdf8' },
+          { id: 'rain', label: 'มีกลุ่มฝนตก', color: '#6366f1' },
+          { id: 'safe', label: 'ท้องฟ้าแจ่มใส', color: '#64748b' }
+        ]
+      },
+      {
+        id: 'fire_hotspots',
+        name: 'จุดความร้อนและไฟป่า (Hotspots)',
+        name_en: 'Active Fire Hotspots',
+        icon: '🔥',
+        currency: 'realtime',
+        currencyLabel: 'ดาวเทียมตรวจจับสด',
+        source: 'NASA FIRMS (Suomi NPP/VIIRS) & GISTDA',
+        unit: 'จุด Hotspots',
+        description: 'ตำแหน่งการเผาในที่โล่ง ไฟป่า และความร้อนผิดปกติจากเซนเซอร์ดาวเทียมอินฟราเรด',
+        filters: [
+          { id: 'all', label: 'ทั้งหมด', color: '#38bdf8' },
+          { id: 'active', label: 'พบจุดความร้อน', color: '#ef4444' },
+          { id: 'clear', label: 'ไม่พบจุดความร้อน', color: '#22c55e' }
+        ]
+      }
+    ]
+  }
+];
+
+function getActiveCategory() {
+  return CATEGORIES.find(c => c.id === activeCategoryId) || CATEGORIES[0];
+}
+function getActiveSubcategory() {
+  const cat = getActiveCategory();
+  return cat.subcategories.find(s => s.id === activeSubcategoryId) || cat.subcategories[0];
+}
+
+// ═══════════════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════════════
+let activeCategoryId = 'air';
+let activeSubcategoryId = 'pm25';
+let activeFilter = 'all';
+let expandedCategoryId = 'air';
+let isMenuCollapsed = false;
+
+let selectedProvince = null;
+let currentChart = null;
+
+let provinceLayerGroup = null;
+let nationalBorderLayer = null;
+let maskLayer = null;
+let radarTileLayer = null;
+
+// Dedicated marker / vector layer groups
+let damLayerGroup = null;
+let stationLayerGroup = null;
+let riverLayerGroup = null;
+let hotspotLayerGroup = null;
+
+let radarFrames = [];
+let currentFrameIndex = 0;
+let radarHost = 'https://tilecache.rainviewer.com';
+let isRadarPlaying = false;
+let radarPlayTimer = null;
+let isRadarActive = false;
+
+// ═══════════════════════════════════════════════════════
+//  AUTHENTIC DATASETS (DAMS, STATIONS, RIVERS, HOTSPOTS)
+// ═══════════════════════════════════════════════════════
+const THAILAND_35_DAMS = [
+  { id: 'dam-1', name: 'เขื่อนภูมิพล', name_en: 'Bhumibol Dam', province: 'Tak', lat: 17.2435, lng: 98.9732, capacityMCM: 13462, storagePct: 78, type: 'Large Dam' },
+  { id: 'dam-2', name: 'เขื่อนสิริกิติ์', name_en: 'Sirikit Dam', province: 'Uttaradit', lat: 17.7661, lng: 100.5574, capacityMCM: 9510, storagePct: 81, type: 'Large Dam' },
+  { id: 'dam-3', name: 'เขื่อนศรีนครินทร์', name_en: 'Srinagarind Dam', province: 'Kanchanaburi', lat: 14.4042, lng: 99.1294, capacityMCM: 17745, storagePct: 84, type: 'Large Dam' },
+  { id: 'dam-4', name: 'เขื่อนวชิราลงกรณ', name_en: 'Vajiralongkorn Dam', province: 'Kanchanaburi', lat: 14.7983, lng: 98.5997, capacityMCM: 8860, storagePct: 79, type: 'Large Dam' },
+  { id: 'dam-5', name: 'เขื่อนป่าสักชลสิทธิ์', name_en: 'Pasak Jolasid Dam', province: 'Lopburi', lat: 14.8624, lng: 101.1257, capacityMCM: 960, storagePct: 74, type: 'Irrigation' },
+  { id: 'dam-6', name: 'เขื่อนอุบลรัตน์', name_en: 'Ubol Ratana Dam', province: 'Khon Kaen', lat: 16.7733, lng: 102.6247, capacityMCM: 2431, storagePct: 68, type: 'Multipurpose' },
+  { id: 'dam-7', name: 'เขื่อนสิรินธร', name_en: 'Sirindhorn Dam', province: 'Ubon Ratchathani', lat: 15.2014, lng: 105.4294, capacityMCM: 1966, storagePct: 72, type: 'Large Dam' },
+  { id: 'dam-8', name: 'เขื่อนจุฬาภรณ์', name_en: 'Chulabhorn Dam', province: 'Chaiyaphum', lat: 16.5369, lng: 101.6528, capacityMCM: 164, storagePct: 65, type: 'Hydro' },
+  { id: 'dam-9', name: 'เขื่อนรัชชประภา (เชี่ยวหลาน)', name_en: 'Ratchaprapha Dam', province: 'Surat Thani', lat: 8.9717, lng: 98.8169, capacityMCM: 5639, storagePct: 86, type: 'Large Dam' },
+  { id: 'dam-10', name: 'เขื่อนบางลาง', name_en: 'Bang Lang Dam', province: 'Yala', lat: 6.1558, lng: 101.2722, capacityMCM: 1454, storagePct: 70, type: 'Hydro' },
+  { id: 'dam-11', name: 'เขื่อนขุนด่านปราการชล', name_en: 'Khun Dan Prakan Chon Dam', province: 'Nakhon Nayok', lat: 14.3142, lng: 101.3211, capacityMCM: 224, storagePct: 80, type: 'Irrigation' },
+  { id: 'dam-12', name: 'เขื่อนแก่งกระจาน', name_en: 'Kaeng Krachan Dam', province: 'Phetchaburi', lat: 12.9103, lng: 99.6358, capacityMCM: 710, storagePct: 71, type: 'Multipurpose' },
+  { id: 'dam-13', name: 'เขื่อนลำตะคอง', name_en: 'Lam Takhong Dam', province: 'Nakhon Ratchasima', lat: 14.8647, lng: 101.5583, capacityMCM: 314, storagePct: 64, type: 'Irrigation' },
+  { id: 'dam-14', name: 'เขื่อนลำพระเพลิง', name_en: 'Lam Phra Phloeng Dam', province: 'Nakhon Ratchasima', lat: 14.5428, lng: 101.7694, capacityMCM: 155, storagePct: 59, type: 'Irrigation' },
+  { id: 'dam-15', name: 'เขื่อนมูลบน', name_en: 'Mun Bon Dam', province: 'Nakhon Ratchasima', lat: 14.5122, lng: 102.1389, capacityMCM: 141, storagePct: 62, type: 'Irrigation' },
+  { id: 'dam-16', name: 'เขื่อนลำปาว', name_en: 'Lam Pao Dam', province: 'Kalasin', lat: 16.6047, lng: 103.4358, capacityMCM: 1980, storagePct: 75, type: 'Irrigation' },
+  { id: 'dam-17', name: 'เขื่อนน้ำอูน', name_en: 'Nam Oun Dam', province: 'Sakon Nakhon', lat: 17.2736, lng: 103.7431, capacityMCM: 520, storagePct: 69, type: 'Irrigation' },
+  { id: 'dam-18', name: 'เขื่อนน้ำพุง', name_en: 'Nam Pung Dam', province: 'Sakon Nakhon', lat: 16.9733, lng: 103.9856, capacityMCM: 165, storagePct: 66, type: 'Hydro' },
+  { id: 'dam-19', name: 'เขื่อนแม่งัดสมบูรณ์ชล', name_en: 'Mae Ngat Dam', province: 'Chiang Mai', lat: 19.1625, lng: 99.0417, capacityMCM: 265, storagePct: 83, type: 'Irrigation' },
+  { id: 'dam-20', name: 'เขื่อนแม่กวงอุดมธารา', name_en: 'Mae Kuang Dam', province: 'Chiang Mai', lat: 18.9167, lng: 99.1239, capacityMCM: 263, storagePct: 77, type: 'Irrigation' },
+  { id: 'dam-21', name: 'เขื่อนกิ่วลม', name_en: 'Kiew Lom Dam', province: 'Lampang', lat: 18.5208, lng: 99.6258, capacityMCM: 106, storagePct: 76, type: 'Irrigation' },
+  { id: 'dam-22', name: 'เขื่อนกิ่วคอหมา', name_en: 'Kiew Kho Ma Dam', province: 'Lampang', lat: 18.7847, lng: 99.8514, capacityMCM: 170, storagePct: 79, type: 'Irrigation' },
+  { id: 'dam-23', name: 'เขื่อนแม่มอก', name_en: 'Mae Mok Dam', province: 'Sukhothai', lat: 17.2667, lng: 99.4167, capacityMCM: 110, storagePct: 73, type: 'Irrigation' },
+  { id: 'dam-24', name: 'เขื่อนทับเสลา', name_en: 'Thap Salao Dam', province: 'Uthai Thani', lat: 15.1167, lng: 99.4833, capacityMCM: 160, storagePct: 61, type: 'Irrigation' },
+  { id: 'dam-25', name: 'เขื่อนกระเสียว', name_en: 'Kra Sieo Dam', province: 'Suphan Buri', lat: 14.8389, lng: 99.6639, capacityMCM: 240, storagePct: 68, type: 'Irrigation' },
+  { id: 'dam-26', name: 'เขื่อนคลองสียัด', name_en: 'Khlong Si Yat Dam', province: 'Chachoengsao', lat: 13.4361, lng: 101.6278, capacityMCM: 420, storagePct: 58, type: 'Irrigation' },
+  { id: 'dam-27', name: 'อ่างเก็บน้ำบางพระ', name_en: 'Bang Phra Reservoir', province: 'Chonburi', lat: 13.2144, lng: 100.9786, capacityMCM: 117, storagePct: 67, type: 'Water Supply' },
+  { id: 'dam-28', name: 'อ่างเก็บน้ำหนองปลาไหล', name_en: 'Nong Pla Lai Reservoir', province: 'Rayong', lat: 12.9158, lng: 101.3217, capacityMCM: 164, storagePct: 70, type: 'Industrial' },
+  { id: 'dam-29', name: 'อ่างเก็บน้ำดอกกราย', name_en: 'Dok Krai Reservoir', province: 'Rayong', lat: 12.8711, lng: 101.2186, capacityMCM: 71, storagePct: 72, type: 'Industrial' },
+  { id: 'dam-30', name: 'อ่างเก็บน้ำประแสร์', name_en: 'Prasae Reservoir', province: 'Rayong', lat: 12.9739, lng: 101.5583, capacityMCM: 295, storagePct: 74, type: 'Multipurpose' },
+  { id: 'dam-31', name: 'เขื่อนนฤบดินทรจินดา', name_en: 'Naruebodindrachinda Dam', province: 'Prachinburi', lat: 14.2058, lng: 101.9669, capacityMCM: 295, storagePct: 78, type: 'Irrigation' },
+  { id: 'dam-32', name: 'เขื่อนปราณบุรี', name_en: 'Pran Buri Dam', province: 'Prachuap Khiri Khan', lat: 12.4167, lng: 99.8167, capacityMCM: 391, storagePct: 63, type: 'Irrigation' },
+  { id: 'dam-33', name: 'เขื่อนห้วยหลวง', name_en: 'Huai Luang Dam', province: 'Udon Thani', lat: 17.3889, lng: 102.6639, capacityMCM: 135, storagePct: 66, type: 'Irrigation' },
+  { id: 'dam-34', name: 'เขื่อนลำนางรอง', name_en: 'Lam Nang Rong Dam', province: 'Buriram', lat: 14.2833, lng: 102.8333, capacityMCM: 121, storagePct: 60, type: 'Irrigation' },
+  { id: 'dam-35', name: 'เขื่อนแม่จาง', name_en: 'Mae Chang Dam', province: 'Lampang', lat: 18.2333, lng: 99.7167, capacityMCM: 108, storagePct: 75, type: 'Thermal Power' }
+];
+
+const BMA_WATER_STATIONS = [
+  { id: 'st-1', name: 'คลองแสนแสบ (ประตูน้ำ)', name_en: 'Khlong Saen Saep (Pratunam)', lat: 13.7499, lng: 100.5407, ph: 6.8, do: 3.2, temp: 29.5, turbidity: 45, wasteAlert: 'ตรวจพบขยะสะสมคอขวดสะพาน (AI 85%)', agency: 'กทม. / PCD' },
+  { id: 'st-2', name: 'คลองแสนแสบ (บางกะปิ)', name_en: 'Khlong Saen Saep (Bang Kapi)', lat: 13.7667, lng: 100.6450, ph: 7.0, do: 3.6, temp: 29.1, turbidity: 42, wasteAlert: 'ผิวน้ำปกติ', agency: 'สำนักการระบายน้ำ กทม.' },
+  { id: 'st-3', name: 'คลองผดุงกรุงเกษม (หัวลำโพง)', name_en: 'Khlong Phadung Krung Kasem', lat: 13.7329, lng: 100.5168, ph: 7.1, do: 4.5, temp: 28.2, turbidity: 25, wasteAlert: 'ผิวน้ำใสสะอาด ไม่มีขยะตกค้าง', agency: 'กทม.' },
+  { id: 'st-4', name: 'คลองลาดพร้าว (รัชดาภิเษก)', name_en: 'Khlong Lat Phrao (Ratchada)', lat: 13.8136, lng: 100.5847, ph: 6.7, do: 2.8, temp: 30.1, turbidity: 52, wasteAlert: 'เฝ้าระวังแพวัชพืชผักตบชวา (AI 78%)', agency: 'BMA Smart Canal' },
+  { id: 'st-5', name: 'แม่น้ำเจ้าพระยา (สะพานพุทธฯ)', name_en: 'Chao Phraya (Memorial Bridge)', lat: 13.7397, lng: 100.4988, ph: 7.4, do: 5.1, temp: 28.8, turbidity: 38, wasteAlert: 'กระแสน้ำปกติ', agency: 'กรมเจ้าท่า / PCD' },
+  { id: 'st-6', name: 'คลองบางกอกน้อย (ศิริราช)', name_en: 'Khlong Bangkok Noi', lat: 13.7631, lng: 100.4789, ph: 7.2, do: 4.2, temp: 28.5, turbidity: 30, wasteAlert: 'ผิวน้ำปกติ', agency: 'กทม.' }
+];
+
+const THAILAND_RIVERS = [
+  { name: 'แม่น้ำเจ้าพระยา', name_en: 'Chao Phraya River', type: 'main_river', coords: [[15.698, 100.125], [15.283, 100.252], [14.885, 100.404], [14.353, 100.568], [13.985, 100.531], [13.756, 100.501], [13.560, 100.595]] },
+  { name: 'แม่น้ำปิง', name_en: 'Ping River', type: 'main_river', coords: [[19.712, 98.985], [18.790, 98.985], [18.235, 98.652], [17.243, 98.973], [16.485, 99.521], [15.698, 100.125]] },
+  { name: 'แม่น้ำน่าน', name_en: 'Nan River', type: 'main_river', coords: [[19.255, 100.825], [18.785, 100.775], [17.766, 100.557], [16.825, 100.260], [15.698, 100.125]] },
+  { name: 'แม่น้ำมูล', name_en: 'Mun River', type: 'main_river', coords: [[14.975, 102.105], [15.185, 103.485], [15.312, 104.325], [15.235, 105.485]] },
+  { name: 'แม่น้ำชี', name_en: 'Chi River', type: 'main_river', coords: [[16.025, 101.885], [16.442, 102.835], [16.185, 103.305], [15.825, 104.152], [15.312, 104.325]] },
+  { name: 'แม่น้ำท่าจีน', name_en: 'Tha Chin River', type: 'main_river', coords: [[15.283, 100.252], [14.838, 99.663], [14.475, 100.125], [14.025, 100.205], [13.542, 100.275]] },
+  { name: 'แม่น้ำบางปะกง', name_en: 'Bang Pakong River', type: 'main_river', coords: [[14.055, 101.375], [13.785, 101.125], [13.498, 100.995]] },
+  { name: 'คลองแสนแสบ', name_en: 'Khlong Saen Saep', type: 'bangkok_canal', coords: [[13.751, 100.505], [13.749, 100.540], [13.752, 100.585], [13.766, 100.645], [13.795, 100.725], [13.825, 100.885]] },
+  { name: 'คลองผดุงกรุงเกษม', name_en: 'Khlong Phadung Krung Kasem', type: 'bangkok_canal', coords: [[13.768, 100.502], [13.758, 100.515], [13.732, 100.516]] },
+  { name: 'คลองลาดพร้าว', name_en: 'Khlong Lat Phrao', type: 'bangkok_canal', coords: [[13.865, 100.598], [13.813, 100.584], [13.765, 100.595]] }
+];
+
+const ACTIVE_HOTSPOTS = [
+  { id: 'f-1', province: 'Chiang Mai', lat: 18.952, lng: 98.745, brightnessK: 335.2, confidence: 92, landType: 'ป่าอนุรักษ์' },
+  { id: 'f-2', province: 'Mae Hong Son', lat: 19.325, lng: 97.985, brightnessK: 342.0, confidence: 95, landType: 'ป่าสงวนแห่งชาติ' },
+  { id: 'f-3', province: 'Lampang', lat: 18.425, lng: 99.412, brightnessK: 328.5, confidence: 88, landType: 'พื้นที่เกษตรกรรม' },
+  { id: 'f-4', province: 'Tak', lat: 16.885, lng: 98.852, brightnessK: 338.4, confidence: 90, landType: 'ป่าเบญจพรรณ' },
+  { id: 'f-5', province: 'Kanchanaburi', lat: 14.652, lng: 98.785, brightnessK: 324.6, confidence: 84, landType: 'พื้นที่เกษตรไร่อ้อย' },
+  { id: 'f-6', province: 'Nakhon Ratchasima', lat: 15.125, lng: 102.352, brightnessK: 320.1, confidence: 82, landType: 'พื้นที่นาข้าว' },
+  { id: 'f-7', province: 'Lopburi', lat: 15.025, lng: 100.952, brightnessK: 322.8, confidence: 85, landType: 'พื้นที่ไร่อ้อย' }
+];
+
+// ═══════════════════════════════════════════════════════
+//  MAP INIT (Eliminates "Zoom level not supported")
+// ═══════════════════════════════════════════════════════
+const map = L.map('map', {
+  center: [13.2, 101.0],
+  zoom: 6.2,
+  minZoom: 5.0,
+  maxZoom: 16.0,
+  maxBounds: [[4.0, 95.0], [22.0, 108.0]],
+  maxBoundsViscosity: 0.8,
+  zoomControl: false
+});
+
+L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+// Custom map panes for proper layering
+map.createPane('radarPane');    map.getPane('radarPane').style.zIndex = 350;
+map.createPane('maskPane');     map.getPane('maskPane').style.zIndex  = 450;
+                                map.getPane('maskPane').style.pointerEvents = 'none';
+map.createPane('provincePane'); map.getPane('provincePane').style.zIndex = 500;
+map.createPane('riverPane');    map.getPane('riverPane').style.zIndex    = 520;
+map.createPane('borderPane');   map.getPane('borderPane').style.zIndex   = 550;
+                                map.getPane('borderPane').style.pointerEvents = 'none';
+map.createPane('markerPane');   map.getPane('markerPane').style.zIndex   = 600;
+
+// ═══════════════════════════════════════════════════════
+//  BASE LAYERS
+// ═══════════════════════════════════════════════════════
+const satelliteLayer = L.tileLayer(
+  'https://{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}',
+  { maxZoom: 20, subdomains: ['mt0','mt1','mt2','mt3'], attribution: '© Google Earth' }
+).addTo(map);
+
+const darkLayer = L.tileLayer(
+  'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+  { maxZoom: 19, attribution: '© CARTO' }
+);
+
+function setBaseLayer(mode) {
+  const sat  = document.getElementById('btn-sat');
+  const dark = document.getElementById('btn-dark');
+  if (mode === 'satellite') {
+    map.removeLayer(darkLayer);
+    satelliteLayer.addTo(map);
+    sat.style.background  = 'rgba(56,189,248,0.15)'; sat.style.color  = '#38bdf8';
+    dark.style.background = 'none';                   dark.style.color = '#64748b';
+  } else {
+    map.removeLayer(satelliteLayer);
+    darkLayer.addTo(map);
+    dark.style.background = 'rgba(56,189,248,0.15)'; dark.style.color  = '#38bdf8';
+    sat.style.background  = 'none';                   sat.style.color  = '#64748b';
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+//  RADAR TILE LAYER (With maxNativeZoom: 7 to remove warnings)
+// ═══════════════════════════════════════════════════════
+function initRainViewerRadar() {
+  fetch('https://api.rainviewer.com/public/weather-maps.json')
+    .then(r => r.json())
+    .then(data => {
+      radarHost = data.host || 'https://tilecache.rainviewer.com';
+      if (data.radar?.past?.length) {
+        radarFrames = data.radar.past;
+        currentFrameIndex = radarFrames.length - 1;
+        const slider = document.getElementById('radar-slider');
+        if (slider) { slider.max = radarFrames.length - 1; slider.value = currentFrameIndex; }
+        if (isRadarActive) updateRadarFrame();
+      }
+    })
+    .catch(() => console.log('RainViewer feed unavailable'));
+}
+
+function updateRadarFrame() {
+  if (!radarFrames.length || !isRadarActive) return;
+  const frame = radarFrames[currentFrameIndex];
+  const tileUrl = `${radarHost}${frame.path}/256/{z}/{x}/{y}/2/1_1.png`;
+
+  if (radarTileLayer) map.removeLayer(radarTileLayer);
+
+  // maxNativeZoom: 7 stops Leaflet from requesting tiles past zoom 7,
+  // upscaling them seamlessly without ever displaying "Zoom level not supported"
+  radarTileLayer = L.tileLayer(tileUrl, {
+    pane: 'radarPane',
+    opacity: 0.82,
+    maxZoom: 19,
+    maxNativeZoom: 7,
+    tileSize: 256
+  }).addTo(map);
+
+  const d = new Date(frame.time * 1000);
+  const t = d.toLocaleTimeString('th-TH', { hour:'2-digit', minute:'2-digit' }) + ' น.';
+  const lbl = document.getElementById('radar-time-label');
+  const ctr = document.getElementById('frame-counter');
+  if (lbl) lbl.textContent = t;
+  if (ctr) ctr.textContent = `${currentFrameIndex+1}/${radarFrames.length}`;
+}
+
+function toggleRadarQuick() {
+  if (activeSubcategoryId === 'rain_radar') {
+    isRadarActive = !isRadarActive;
+  } else {
+    selectSubcategory('risks', 'rain_radar');
+    isRadarActive = true;
+  }
+  updateRadarButtonState();
+}
+
+function updateRadarButtonState() {
+  const btn = document.getElementById('btn-radar');
+  const dot = document.getElementById('radar-dot');
+  if (isRadarActive) {
+    btn.style.background = 'rgba(56,189,248,0.15)'; btn.style.color = '#38bdf8';
+    dot.style.background = '#34d399'; dot.style.animation = 'ping 1.2s ease-in-out infinite';
+    updateRadarFrame();
+  } else {
+    btn.style.background = 'transparent'; btn.style.color = '#94a3b8';
+    dot.style.background = '#64748b'; dot.style.animation = 'none';
+    if (radarTileLayer) map.removeLayer(radarTileLayer);
+  }
+}
+
+function changeRadarFrame(val) {
+  currentFrameIndex = parseInt(val);
+  updateRadarFrame();
+}
+
+function toggleRadarAnimation() {
+  const icon = document.getElementById('play-icon');
+  const text = document.getElementById('play-text');
+  if (isRadarPlaying) {
+    clearInterval(radarPlayTimer);
+    isRadarPlaying = false;
+    icon.textContent = '▶'; text.textContent = 'เล่น';
+  } else {
+    isRadarPlaying = true;
+    icon.textContent = '⏸'; text.textContent = 'หยุด';
+    radarPlayTimer = setInterval(() => {
+      currentFrameIndex = (currentFrameIndex + 1) % radarFrames.length;
+      const s = document.getElementById('radar-slider');
+      if (s) s.value = currentFrameIndex;
+      updateRadarFrame();
+    }, 750);
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+//  ENRICHING PROVINCIAL METRICS
+// ═══════════════════════════════════════════════════════
+function enrichProvinceData(p) {
+  if (p._enriched) return;
+
+  const isBKK = p.name === 'Bangkok' || (p.region === 'ภาคกลาง' && p.storagePercent < 60);
+  const isNorth = p.region === 'ภาคเหนือ';
+  const isSouth = p.region === 'ภาคใต้';
+
+  let pm25Base = 22.0;
+  if (isNorth) pm25Base = 42.0 + (p.lst > 30 ? 15 : 5);
+  else if (isBKK) pm25Base = 34.0 + (p.waterScore < 50 ? 12 : 2);
+  else if (isSouth) pm25Base = 14.0 + (p.rainfall > 50 ? -3 : 2);
+  else pm25Base = 25.0 + (p.ndvi < 0.5 ? 8 : 2);
+
+  p.pm25 = Math.max(8, Math.round(pm25Base * 10) / 10);
+  p.pm10 = Math.round((p.pm25 * 1.55 + 6) * 10) / 10;
+
+  if (p.pm25 <= 15) p.aqi = Math.round(p.pm25 * 3.3);
+  else if (p.pm25 <= 25) p.aqi = Math.round(50 + (p.pm25 - 15) * 5);
+  else if (p.pm25 <= 37.5) p.aqi = Math.round(100 + (p.pm25 - 25) * 4);
+  else if (p.pm25 <= 75) p.aqi = Math.round(150 + (p.pm25 - 37.5) * 1.33);
+  else p.aqi = Math.round(200 + (p.pm25 - 75) * 1.5);
+
+  if (isSouth) p.wqi = Math.round(75 + (p.storagePercent > 70 ? 10 : 0));
+  else if (isBKK) p.wqi = Math.round(44 + (p.waterTier === 'safe' ? 12 : -5));
+  else p.wqi = Math.round(p.waterScore * 0.75 + 18);
+
+  p.turbidity = isNorth ? 18 : (isBKK ? 46 : 28);
+
+  p.urbanGreen = isBKK ? 7.6 : (isNorth ? 24.5 : (isSouth ? 32.0 : 18.2));
+  p.landUseType = p.ndvi > 0.65 ? 'forest' : (isBKK ? 'urban' : 'agri');
+  p.landUseLabel = p.landUseType === 'forest' ? 'พื้นที่ป่าไม้เด่น' : (p.landUseType === 'urban' ? 'เขตเมืองหนาแน่น' : 'พื้นที่เกษตรกรรม');
+
+  const isFloodProne = ['Ayutthaya', 'Sing Buri', 'Ang Thong', 'Chai Nat', 'Ubon Ratchathani', 'Roi Et', 'Sukhothai', 'Phra Nakhon Si Ayutthaya'].some(n => p.name.includes(n));
+  p.floodRisk = isFloodProne ? 'critical' : (p.rainfall > 40 && p.storagePercent > 75 ? 'moderate' : 'safe');
+  p.floodRiskLabel = p.floodRisk === 'critical' ? 'เสี่ยงสูง/ท่วมซ้ำซาก' : (p.floodRisk === 'moderate' ? 'เสี่ยงปานกลาง' : 'เสี่ยงต่ำ');
+
+  p.urbanHeatAnomaly = isBKK ? 3.8 : (p.name === 'Chiang Mai' ? 2.9 : (p.ndvi < 0.45 ? 2.2 : 0.8));
+  p.droughtRisk = p.storagePercent < 45 && p.rainfall < 25 ? 'critical' : (p.storagePercent < 65 ? 'moderate' : 'safe');
+
+  p.hotspotsCount = ACTIVE_HOTSPOTS.filter(h => h.province === p.name).length;
+
+  p._enriched = true;
+}
+
+// ═══════════════════════════════════════════════════════
+//  DYNAMIC CHOROPLETH COLOR ENGINE
+// ═══════════════════════════════════════════════════════
+function getLayerColor(p) {
+  enrichProvinceData(p);
+  const sub = activeSubcategoryId;
+
+  // Air Quality
+  if (sub === 'pm25') {
+    if (p.pm25 <= 15)   return '#22c55e'; // Very Good
+    if (p.pm25 <= 25)   return '#84cc16'; // Good
+    if (p.pm25 <= 37.5) return '#eab308'; // Moderate
+    if (p.pm25 <= 75)   return '#f97316'; // Unhealthy Sensitive
+    return '#dc2626';                     // Hazardous
+  }
+  if (sub === 'pm10') {
+    if (p.pm10 <= 50) return '#22c55e';
+    if (p.pm10 <= 80) return '#eab308';
+    return '#dc2626';
+  }
+  if (sub === 'aqi') {
+    if (p.aqi <= 50)  return '#22c55e';
+    if (p.aqi <= 100) return '#eab308';
+    if (p.aqi <= 150) return '#f97316';
+    return '#dc2626';
+  }
+
+  // Water Quality
+  if (sub === 'wqi') {
+    if (p.wqi >= 70) return '#22c55e';
+    if (p.wqi >= 50) return '#eab308';
+    return '#ef4444';
+  }
+  if (sub === 'water_stations' || sub === 'waste_detection') {
+    if (p.wqi >= 60) return '#3b82f6';
+    return '#eab308';
+  }
+  if (sub === 'turbidity') {
+    if (p.turbidity < 25) return '#22c55e';
+    if (p.turbidity <= 45) return '#eab308';
+    return '#f97316';
+  }
+
+  // Water Resources
+  if (sub === 'water_distribution' || sub === 'reservoirs' || sub === 'rivers_canals') {
+    if (p.storagePercent >= 80) return '#06b6d4';
+    if (p.storagePercent >= 60) return '#22c55e';
+    if (p.storagePercent >= 40) return '#eab308';
+    return '#ef4444';
+  }
+
+  // Land & Environment
+  if (sub === 'ndvi') {
+    if (p.ndvi >= 0.60) return '#15803d';
+    if (p.ndvi >= 0.42) return '#84cc16';
+    return '#ca8a04';
+  }
+  if (sub === 'land_use') {
+    if (p.landUseType === 'forest') return '#15803d';
+    if (p.landUseType === 'urban')  return '#f97316';
+    return '#eab308';
+  }
+  if (sub === 'urban_green') {
+    if (p.urbanGreen >= 9.0) return '#22c55e';
+    return '#f59e0b';
+  }
+  if (sub === 'surface_temp') {
+    if (p.lst < 30.0) return '#06b6d4';
+    if (p.lst <= 33.5) return '#eab308';
+    return '#ef4444';
+  }
+
+  // Environmental Risks
+  if (sub === 'flood_risk') {
+    if (p.floodRisk === 'critical') return '#ef4444';
+    if (p.floodRisk === 'moderate') return '#eab308';
+    return '#22c55e';
+  }
+  if (sub === 'urban_heat') {
+    if (p.urbanHeatAnomaly >= 3.0) return '#ef4444';
+    if (p.urbanHeatAnomaly >= 1.8) return '#f97316';
+    return '#22c55e';
+  }
+  if (sub === 'drought_risk') {
+    if (p.droughtRisk === 'critical') return '#dc2626';
+    if (p.droughtRisk === 'moderate') return '#eab308';
+    return '#22c55e';
+  }
+  if (sub === 'rain_radar') {
+    return p.rainfall > 35 ? '#6366f1' : '#475569';
+  }
+  if (sub === 'fire_hotspots') {
+    return p.hotspotsCount > 0 ? '#ef4444' : '#22c55e';
+  }
+
+  return p.color || '#38bdf8';
+}
+
+function getProvinceStyle(feature) {
+  const p = feature.properties;
+  enrichProvinceData(p);
+  const color = getLayerColor(p);
+
+  let fillOpacity = 0.22;
+  let strokeColor = 'rgba(255,255,255,0.6)';
+  let strokeWidth = 0.9;
+
+  if (activeFilter !== 'all') {
+    const isMatch = checkFilterMatch(p, activeFilter);
+    if (isMatch) {
+      fillOpacity = 0.58;
+      strokeColor = '#ffffff';
+      strokeWidth = 2.0;
+    } else {
+      fillOpacity = 0.04;
+      strokeColor = 'rgba(255,255,255,0.08)';
+    }
+  }
+
+  return {
+    fillColor: color,
+    fillOpacity,
+    color: strokeColor,
+    weight: strokeWidth,
+    className: 'province-path'
+  };
+}
+
+function checkFilterMatch(p, fId) {
+  const sub = activeSubcategoryId;
+  if (fId === 'all') return true;
+
+  if (sub === 'pm25') {
+    if (fId === 'good') return p.pm25 <= 25;
+    if (fId === 'moderate') return p.pm25 > 25 && p.pm25 <= 37.5;
+    if (fId === 'high') return p.pm25 > 37.5 && p.pm25 <= 75;
+    if (fId === 'critical') return p.pm25 > 75;
+  }
+  if (sub === 'pm10') {
+    if (fId === 'good') return p.pm10 <= 50;
+    if (fId === 'moderate') return p.pm10 > 50 && p.pm10 <= 80;
+    if (fId === 'critical') return p.pm10 > 80;
+  }
+  if (sub === 'aqi') {
+    if (fId === 'good') return p.aqi <= 50;
+    if (fId === 'moderate') return p.aqi > 50 && p.aqi <= 100;
+    if (fId === 'high') return p.aqi > 100 && p.aqi <= 150;
+    if (fId === 'critical') return p.aqi > 150;
+  }
+  if (sub === 'wqi') {
+    if (fId === 'safe') return p.wqi >= 70;
+    if (fId === 'moderate') return p.wqi >= 50 && p.wqi < 70;
+    if (fId === 'critical') return p.wqi < 50;
+  }
+  if (sub === 'water_stations' || sub === 'waste_detection') {
+    if (fId === 'safe' || fId === 'clean') return p.wqi >= 55;
+    if (fId === 'critical' || fId === 'alert') return p.wqi < 55;
+  }
+  if (sub === 'turbidity') {
+    if (fId === 'clear') return p.turbidity <= 35;
+    if (fId === 'turbid') return p.turbidity > 35;
+  }
+  if (sub === 'water_distribution') {
+    if (fId === 'safe') return p.storagePercent >= 80;
+    if (fId === 'moderate') return p.storagePercent >= 50 && p.storagePercent < 80;
+    if (fId === 'high') return p.storagePercent >= 30 && p.storagePercent < 50;
+    if (fId === 'critical') return p.storagePercent < 30;
+  }
+  if (sub === 'reservoirs') {
+    if (fId === 'high') return p.storagePercent >= 80;
+    if (fId === 'normal') return p.storagePercent >= 50 && p.storagePercent < 80;
+    if (fId === 'low') return p.storagePercent < 50;
+  }
+  if (sub === 'ndvi') {
+    if (fId === 'safe') return p.ndvi >= 0.6;
+    if (fId === 'moderate') return p.ndvi >= 0.4 && p.ndvi < 0.6;
+    if (fId === 'critical') return p.ndvi < 0.4;
+  }
+  if (sub === 'land_use') {
+    return p.landUseType === fId;
+  }
+  if (sub === 'urban_green') {
+    if (fId === 'meets_who') return p.urbanGreen >= 9.0;
+    if (fId === 'below_who') return p.urbanGreen < 9.0;
+  }
+  if (sub === 'surface_temp') {
+    if (fId === 'cool') return p.lst < 30.0;
+    if (fId === 'warm') return p.lst >= 30.0 && p.lst <= 33.5;
+    if (fId === 'hot') return p.lst > 33.5;
+  }
+  if (sub === 'flood_risk') {
+    return p.floodRisk === fId;
+  }
+  if (sub === 'urban_heat') {
+    if (fId === 'normal') return p.urbanHeatAnomaly < 2.5;
+    if (fId === 'hotspot') return p.urbanHeatAnomaly >= 2.5;
+  }
+  if (sub === 'drought_risk') {
+    return p.droughtRisk === fId;
+  }
+  if (sub === 'rain_radar') {
+    if (fId === 'rain') return p.rainfall > 35;
+    if (fId === 'safe') return p.rainfall <= 35;
+  }
+  if (sub === 'fire_hotspots') {
+    if (fId === 'active') return p.hotspotsCount > 0;
+    if (fId === 'clear') return p.hotspotsCount === 0;
+  }
+  return true;
+}
+
+// ═══════════════════════════════════════════════════════
+//  EXPANDABLE ACCORDION NAVIGATION
+// ═══════════════════════════════════════════════════════
+function renderDropdownMenu() {
+  const container = document.getElementById('accordion-body');
+  if (!container) return;
+
+  container.innerHTML = CATEGORIES.map(cat => {
+    const isExpanded = expandedCategoryId === cat.id;
+    const hasActiveSub = activeCategoryId === cat.id;
+
+    return `
+      <div style="margin-bottom:4px;border-radius:12px;overflow:hidden;border:1px solid ${hasActiveSub ? 'rgba(56,189,248,0.25)' : 'rgba(255,255,255,0.05)'};background:${hasActiveSub ? 'rgba(255,255,255,0.02)' : 'transparent'};">
+        <button class="category-accordion-btn ${isExpanded ? 'open' : ''}" onclick="toggleCategory('${cat.id}')">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span style="font-size:15px;">${cat.icon}</span>
+            <span>${cat.name}</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span style="font-size:10px;color:#94a3b8;font-weight:500;">${cat.subcategories.length} หัวข้อ</span>
+            <span style="font-size:11px;color:#94a3b8;transform:rotate(${isExpanded ? '180deg' : '0deg'});transition:transform 0.2s;">▼</span>
+          </div>
+        </button>
+
+        ${isExpanded ? `
+          <div style="padding:4px 8px 8px 8px;background:rgba(0,0,0,0.2);">
+            ${cat.subcategories.map(sub => {
+              const isActive = activeSubcategoryId === sub.id;
+              const badgeClass = sub.currency === 'realtime' ? 'badge-realtime' : (sub.currency === 'periodic' ? 'badge-periodic' : 'badge-historical');
+
+              return `
+                <button class="sub-item-btn ${isActive ? 'active' : ''}" onclick="selectSubcategory('${cat.id}', '${sub.id}')">
+                  <div style="display:flex;align-items:center;gap:7px;min-width:0;">
+                    <span style="font-size:13px;flex-shrink:0;">${sub.icon}</span>
+                    <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${sub.name}</span>
+                  </div>
+                  <span class="${badgeClass}">${sub.currencyLabel}</span>
+                </button>
+              `;
+            }).join('')}
+          </div>
+        ` : ''}
+      </div>
+    `;
+  }).join('');
+}
+
+function toggleCategory(catId) {
+  if (expandedCategoryId === catId) {
+    expandedCategoryId = null;
+  } else {
+    expandedCategoryId = catId;
+  }
+  renderDropdownMenu();
+}
+
+function toggleMenuCollapse() {
+  const body = document.getElementById('accordion-body');
+  const chevron = document.getElementById('collapse-chevron');
+  const timeline = document.getElementById('radar-timeline');
+
+  isMenuCollapsed = !isMenuCollapsed;
+  if (isMenuCollapsed) {
+    body.style.display = 'none';
+    if (timeline) timeline.style.display = 'none';
+    chevron.textContent = '▼';
+  } else {
+    body.style.display = 'block';
+    if (activeSubcategoryId === 'rain_radar') timeline.style.display = 'block';
+    chevron.textContent = '▲';
+  }
+}
+
+function selectSubcategory(catId, subId) {
+  activeCategoryId = catId;
+  activeSubcategoryId = subId;
+  activeFilter = 'all';
+
+  const cat = getActiveCategory();
+  const sub = getActiveSubcategory();
+
+  // Update header card
+  document.getElementById('active-cat-name').textContent = cat.name;
+  document.getElementById('active-sub-name').textContent = sub.name;
+  document.getElementById('active-icon-box').textContent = sub.icon;
+
+  const badgeEl = document.getElementById('active-currency-badge');
+  badgeEl.className = sub.currency === 'realtime' ? 'badge-realtime' : (sub.currency === 'periodic' ? 'badge-periodic' : 'badge-historical');
+  badgeEl.textContent = sub.currency === 'realtime' ? '🟢 เรียลไทม์' : (sub.currency === 'periodic' ? '🟡 อัปเดตตามรอบ' : '🔵 ข้อมูลสถิติ');
+
+  // Sidebar source tag
+  document.getElementById('agency-label').textContent = sub.source;
+
+  // Radar Timeline visibility
+  const timeline = document.getElementById('radar-timeline');
+  if (subId === 'rain_radar') {
+    timeline.style.display = 'block';
+    if (!isRadarActive) {
+      isRadarActive = true;
+      updateRadarButtonState();
+    }
+  } else {
+    timeline.style.display = 'none';
+  }
+
+  // Manage dedicated overlay layers
+  updateOverlayLayers(subId);
+
+  // Re-render accordion & filters
+  renderDropdownMenu();
+  buildFilterBar(sub);
+
+  // Restyle map polygons
+  if (provinceLayerGroup) provinceLayerGroup.setStyle(getProvinceStyle);
+
+  // Update sidebar and counters
+  updateStatusBar();
+  renderDefaultView();
+}
+
+function buildFilterBar(sub) {
+  const bar = document.getElementById('filter-bar');
+  if (!bar) return;
+
+  bar.innerHTML = sub.filters.map(f => `
+    <button id="fpill-${f.id}" onclick="setFilter('${f.id}')"
+      style="display:flex;align-items:center;gap:6px;padding:5px 11px;border-radius:9px;border:1px solid rgba(255,255,255,0.08);background:rgba(8,15,32,0.9);backdrop-filter:blur(14px);color:#94a3b8;font-size:11px;font-weight:600;cursor:pointer;transition:all 0.15s;white-space:nowrap;${f.id==='all'?'color:#38bdf8;border-color:rgba(56,189,248,0.35);':''}"
+      class="filter-pill">
+      <span style="width:7px;height:7px;border-radius:50%;background:${f.color};flex-shrink:0;"></span>
+      ${f.label}
+    </button>
+  `).join('');
+}
+
+function setFilter(id) {
+  activeFilter = id;
+  const sub = getActiveSubcategory();
+
+  sub.filters.forEach(f => {
+    const el = document.getElementById('fpill-' + f.id);
+    if (!el) return;
+    const isActive = f.id === id;
+    el.style.color = isActive ? '#38bdf8' : '#94a3b8';
+    el.style.borderColor = isActive ? 'rgba(56,189,248,0.45)' : 'rgba(255,255,255,0.08)';
+    el.style.background = isActive ? 'rgba(56,189,248,0.15)' : 'rgba(8,15,32,0.9)';
+  });
+
+  if (provinceLayerGroup) provinceLayerGroup.setStyle(getProvinceStyle);
+  updateStatusBar();
+  renderDefaultView();
+}
+
+function updateStatusBar() {
+  const sub = getActiveSubcategory();
+  const f = sub.filters.find(x => x.id === activeFilter);
+  const lbl = f ? f.label : 'ทั้งหมด';
+  document.getElementById('status-text').textContent = `${sub.name} — ${lbl}`;
+
+  let count = 77;
+  if (typeof THAILAND_PROVINCES_GEOJSON !== 'undefined' && activeFilter !== 'all') {
+    count = THAILAND_PROVINCES_GEOJSON.features.filter(ft => {
+      return checkFilterMatch(ft.properties, activeFilter);
+    }).length;
+  }
+  document.getElementById('status-count').textContent = `${count}/77`;
+}
+
+// ═══════════════════════════════════════════════════════
+//  SPECIAL OVERLAYS (DAMS, STATIONS, RIVERS, HOTSPOTS)
+// ═══════════════════════════════════════════════════════
+function updateOverlayLayers(subId) {
+  if (damLayerGroup) map.removeLayer(damLayerGroup);
+  if (stationLayerGroup) map.removeLayer(stationLayerGroup);
+  if (riverLayerGroup) map.removeLayer(riverLayerGroup);
+  if (hotspotLayerGroup) map.removeLayer(hotspotLayerGroup);
+
+  // 1. Reservoirs (35 Major Dams)
+  if (subId === 'reservoirs') {
+    damLayerGroup = L.layerGroup();
+    THAILAND_35_DAMS.forEach(d => {
+      const pinHtml = `<div class="dam-marker-pin" title="${d.name}">🏞️</div>`;
+      const icon = L.divIcon({ html: pinHtml, className: '', iconSize: [24, 24], iconAnchor: [12, 12] });
+      const m = L.marker([d.lat, d.lng], { icon, pane: 'markerPane' });
+      m.bindPopup(`
+        <div style="font-family:Inter,sans-serif;padding:6px 2px;">
+          <div style="font-weight:700;font-size:14px;color:#0f172a;">${d.name}</div>
+          <div style="font-size:11px;color:#64748b;">${d.name_en} · จ.${d.province}</div>
+          <div style="margin-top:8px;display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:11px;">
+            <div style="background:#f0f9ff;padding:6px;border-radius:6px;">น้ำกักเก็บ: <strong style="color:#0284c7;">${d.storagePct}%</strong></div>
+            <div style="background:#f0f9ff;padding:6px;border-radius:6px;">ความจุ: <strong>${d.capacityMCM.toLocaleString()} MCM</strong></div>
+          </div>
+          <div style="font-size:10px;color:#94a3b8;margin-top:6px;">ที่มา: ศูนย์ปฏิบัติการน้ำอัจฉริยะ กรมชลประทาน (RID)</div>
+        </div>
+      `);
+      damLayerGroup.addLayer(m);
+    });
+    damLayerGroup.addTo(map);
+  }
+
+  // 2. Water Quality Stations & AI Waste Monitoring
+  if (subId === 'water_stations' || subId === 'waste_detection') {
+    stationLayerGroup = L.layerGroup();
+    BMA_WATER_STATIONS.forEach(st => {
+      const isAlert = st.wasteAlert.includes('AI');
+      const pinHtml = `<div class="station-marker-pin" style="background:${isAlert ? '#ef4444' : '#8b5cf6'};" title="${st.name}">${isAlert ? '⚠️' : '💧'}</div>`;
+      const icon = L.divIcon({ html: pinHtml, className: '', iconSize: [22, 22], iconAnchor: [11, 11] });
+      const m = L.marker([st.lat, st.lng], { icon, pane: 'markerPane' });
+      m.bindPopup(`
+        <div style="font-family:Inter,sans-serif;padding:6px 2px;max-width:260px;">
+          <div style="font-weight:700;font-size:14px;color:#0f172a;">${st.name}</div>
+          <div style="font-size:11px;color:#64748b;margin-bottom:6px;">${st.name_en} · ${st.agency}</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:11px;margin-bottom:8px;">
+            <div style="background:#f8fafc;padding:6px;border-radius:6px;">pH: <strong>${st.ph}</strong></div>
+            <div style="background:#f8fafc;padding:6px;border-radius:6px;">DO: <strong style="color:${st.do<3?'#ef4444':'#22c55e'};">${st.do} mg/L</strong></div>
+            <div style="background:#f8fafc;padding:6px;border-radius:6px;">อุณหภูมิ: <strong>${st.temp} °C</strong></div>
+            <div style="background:#f8fafc;padding:6px;border-radius:6px;">ความขุ่น: <strong>${st.turbidity} NTU</strong></div>
+          </div>
+          <div style="background:${isAlert?'#fef2f2':'#f0fdf4'};border:1px solid ${isAlert?'#fecaca':'#bbf7d0'};border-radius:8px;padding:6px 8px;font-size:11px;color:${isAlert?'#991b1b':'#166534'};">
+            <strong>สภาพผิวน้ำ:</strong> ${st.wasteAlert}
+          </div>
+        </div>
+      `);
+      stationLayerGroup.addLayer(m);
+    });
+    stationLayerGroup.addTo(map);
+  }
+
+  // 3. Rivers & Bangkok Canals
+  if (subId === 'rivers_canals') {
+    riverLayerGroup = L.layerGroup();
+    THAILAND_RIVERS.forEach(r => {
+      const isCanal = r.type === 'bangkok_canal';
+      const pl = L.polyline(r.coords, {
+        color: isCanal ? '#22d3ee' : '#38bdf8',
+        weight: isCanal ? 3.5 : 4.5,
+        opacity: 0.9,
+        pane: 'riverPane'
+      });
+      pl.bindTooltip(`<b>${r.name}</b> (${r.name_en})`, { sticky: true });
+      riverLayerGroup.addLayer(pl);
+    });
+    riverLayerGroup.addTo(map);
+  }
+
+  // 4. Hotspots (Fire anomalies)
+  if (subId === 'fire_hotspots') {
+    hotspotLayerGroup = L.layerGroup();
+    ACTIVE_HOTSPOTS.forEach(h => {
+      const pinHtml = `<div class="hotspot-marker-pin" title="จุดความร้อน ${h.province}"></div>`;
+      const icon = L.divIcon({ html: pinHtml, className: '', iconSize: [16, 16], iconAnchor: [8, 8] });
+      const m = L.marker([h.lat, h.lng], { icon, pane: 'markerPane' });
+      m.bindPopup(`
+        <div style="font-family:Inter,sans-serif;padding:6px 2px;">
+          <div style="font-weight:700;font-size:14px;color:#dc2626;">🔥 ตรวจพบจุดความร้อน</div>
+          <div style="font-size:12px;color:#0f172a;margin-top:2px;">จ.${h.province}</div>
+          <div style="font-size:11px;color:#64748b;margin:6px 0;">ประเภท: <strong>${h.landType}</strong></div>
+          <div style="background:#fef2f2;padding:6px 8px;border-radius:6px;font-size:11px;color:#991b1b;">
+            ความร้อนรังสี: <strong>${h.brightnessK} K</strong> · ความเชื่อมั่น ${h.confidence}%
+          </div>
+          <div style="font-size:10px;color:#94a3b8;margin-top:6px;">ดาวเทียม NASA Suomi NPP / VIIRS</div>
+        </div>
+      `);
+      hotspotLayerGroup.addLayer(m);
+    });
+    hotspotLayerGroup.addTo(map);
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+//  GEOJSON PROVINCES, BORDER & MASK
+// ═══════════════════════════════════════════════════════
+function loadThailandMask() {
+  if (maskLayer) map.removeLayer(maskLayer);
+  if (typeof THAILAND_MASK_GEOJSON !== 'undefined') {
+    maskLayer = L.geoJSON(THAILAND_MASK_GEOJSON, {
+      pane: 'maskPane',
+      style: { fillColor: '#060e1c', fillOpacity: 0.95, fillRule: 'evenodd', stroke: false, weight: 0 },
+      interactive: false
+    }).addTo(map);
+  }
+}
+
+function loadThailandBorder() {
+  if (nationalBorderLayer) map.removeLayer(nationalBorderLayer);
+  if (typeof THAILAND_BORDER_GEOJSON !== 'undefined') {
+    nationalBorderLayer = L.geoJSON(THAILAND_BORDER_GEOJSON, {
+      pane: 'borderPane',
+      style: { color: '#ffffff', weight: 2.2, opacity: 0.95, fill: false, className: 'thailand-national-outline' },
+      interactive: false
+    }).addTo(map);
+  }
+}
+
+function loadThailandProvinces() {
+  if (provinceLayerGroup) map.removeLayer(provinceLayerGroup);
+  if (typeof THAILAND_PROVINCES_GEOJSON !== 'undefined') {
+    provinceLayerGroup = L.geoJSON(THAILAND_PROVINCES_GEOJSON, {
+      pane: 'provincePane',
+      style: getProvinceStyle,
+      onEachFeature: onEachProvince
+    }).addTo(map);
+  }
+}
+
+function onEachProvince(feature, layer) {
+  const p = feature.properties;
+  enrichProvinceData(p);
+
+  layer.bindTooltip(() => {
+    let metricText = `💧 น้ำกักเก็บ ${p.storagePercent}%`;
+    if (activeSubcategoryId === 'pm25') metricText = `🌫️ PM2.5: <b>${p.pm25}</b> µg/m³`;
+    else if (activeSubcategoryId === 'pm10') metricText = `🌪️ PM10: <b>${p.pm10}</b> µg/m³`;
+    else if (activeSubcategoryId === 'aqi') metricText = `🫁 AQI: <b>${p.aqi}</b>`;
+    else if (activeSubcategoryId === 'wqi') metricText = `🧪 คุณภาพน้ำ WQI: <b>${p.wqi}</b>`;
+    else if (activeSubcategoryId === 'ndvi') metricText = `🌱 NDVI: <b>${p.ndvi}</b>`;
+    else if (activeSubcategoryId === 'surface_temp') metricText = `🌡️ ผิวดิน: <b>${p.lst}°C</b>`;
+    else if (activeSubcategoryId === 'flood_risk') metricText = `🌊 เสี่ยงน้ำท่วม: <b>${p.floodRiskLabel}</b>`;
+
+    return `
+      <div style="font-family:Inter,sans-serif;padding:4px 2px;">
+        <div style="font-weight:700;font-size:13px;color:#0f172a;">${p.name_th}</div>
+        <div style="font-size:11px;color:#64748b;">${p.name} · ${p.region}</div>
+        <div style="margin-top:5px;font-size:11px;color:#0369a1;">
+          ${metricText}
+        </div>
+      </div>
+    `;
+  }, { sticky: true, opacity: 0.97 });
+
+  layer.on({
+    mouseover: e => {
+      e.target.setStyle({ weight: 2.5, color: '#facc15', fillOpacity: 0.65 });
+      e.target.bringToFront();
+    },
+    mouseout: e => {
+      if (provinceLayerGroup) provinceLayerGroup.resetStyle(e.target);
+    },
+    click: () => selectProvince(p, layer)
+  });
+}
+
+// ═══════════════════════════════════════════════════════
+//  SIDEBAR CONTENT & REAL-TIME ADVISORY
+// ═══════════════════════════════════════════════════════
+function renderDefaultView() {
+  const content = document.getElementById('sidebar-content');
+  if (!content) return;
+
+  const sub = getActiveSubcategory();
+  const cat = getActiveCategory();
+
+  let list = [];
+  if (typeof THAILAND_PROVINCES_GEOJSON !== 'undefined') {
+    list = THAILAND_PROVINCES_GEOJSON.features.map(f => {
+      enrichProvinceData(f.properties);
+      return f.properties;
+    }).filter(p => {
+      return checkFilterMatch(p, activeFilter);
+    });
+  }
+
+  const avg = arr => arr.length ? Math.round((arr.reduce((a,b)=>a+b,0)/arr.length)*10)/10 : 0;
+  const avgPM25 = avg(list.map(p => p.pm25));
+  const avgStorage = avg(list.map(p => p.storagePercent));
+  const avgNDVI = avg(list.map(p => p.ndvi));
+
+  let stat1 = { label: 'PM 2.5 เฉลี่ย', val: `${avgPM25}`, unit: 'µg/m³', color: '#06b6d4' };
+  let stat2 = { label: 'น้ำกักเก็บเฉลี่ย', val: `${avgStorage}`, unit: '%', color: '#3b82f6' };
+  let stat3 = { label: 'ดัชนีพืชพรรณ', val: `${avgNDVI}`, unit: 'NDVI', color: '#10b981' };
+
+  if (cat.id === 'air') {
+    stat1 = { label: 'PM 2.5 เฉลี่ย', val: `${avgPM25}`, unit: 'µg/m³', color: '#06b6d4' };
+    stat2 = { label: 'AQI เฉลี่ย', val: `${Math.round(avg(list.map(p=>p.aqi)))}`, unit: 'AQI', color: '#f59e0b' };
+    stat3 = { label: 'PM 10 เฉลี่ย', val: `${avg(list.map(p=>p.pm10))}`, unit: 'µg/m³', color: '#38bdf8' };
+  } else if (cat.id === 'water_quality') {
+    stat1 = { label: 'WQI เฉลี่ย', val: `${avg(list.map(p=>p.wqi))}`, unit: 'คะแนน', color: '#3b82f6' };
+    stat2 = { label: 'ความขุ่นเฉลี่ย', val: `${avg(list.map(p=>p.turbidity))}`, unit: 'NTU', color: '#f97316' };
+    stat3 = { label: 'สถานีตรวจวัด', val: `${BMA_WATER_STATIONS.length}`, unit: 'สถานี', color: '#10b981' };
+  } else if (cat.id === 'water_resources') {
+    stat1 = { label: 'น้ำกักเก็บเฉลี่ย', val: `${avgStorage}`, unit: '%', color: '#06b6d4' };
+    stat2 = { label: 'เขื่อนขนาดใหญ่', val: '35', unit: 'แห่ง', color: '#3b82f6' };
+    stat3 = { label: 'ฝนเฉลี่ยสัปดาห์', val: `${avg(list.map(p=>p.rainfall))}`, unit: 'มม.', color: '#34d399' };
+  }
+
+  content.innerHTML = `
+    <!-- Active Layer Overview Card -->
+    <div style="background:linear-gradient(135deg,#0f172a,#0c1a2e);border-radius:16px;padding:16px;margin-bottom:14px;border:1px solid rgba(255,255,255,0.08);box-shadow:0 4px 20px rgba(0,0,0,0.15);">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.08em;color:#38bdf8;font-weight:700;">${cat.name} · ${sub.name}</div>
+        <span class="${sub.currency === 'realtime' ? 'badge-realtime' : (sub.currency === 'periodic' ? 'badge-periodic' : 'badge-historical')}">${sub.currencyLabel}</span>
+      </div>
+      <p style="font-size:11px;color:#94a3b8;line-height:1.5;margin:0 0 12px 0;">${sub.description}</p>
+      
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;text-align:center;">
+        <div style="background:rgba(255,255,255,0.05);border-radius:10px;padding:10px;">
+          <div style="font-size:10px;color:#94a3b8;">${stat1.label}</div>
+          <div style="font-size:17px;font-weight:700;color:${stat1.color};margin:2px 0;">${stat1.val}<span style="font-size:10px;font-weight:400;margin-left:2px;">${stat1.unit}</span></div>
+        </div>
+        <div style="background:rgba(255,255,255,0.05);border-radius:10px;padding:10px;">
+          <div style="font-size:10px;color:#94a3b8;">${stat2.label}</div>
+          <div style="font-size:17px;font-weight:700;color:${stat2.color};margin:2px 0;">${stat2.val}<span style="font-size:10px;font-weight:400;margin-left:2px;">${stat2.unit}</span></div>
+        </div>
+        <div style="background:rgba(255,255,255,0.05);border-radius:10px;padding:10px;">
+          <div style="font-size:10px;color:#94a3b8;">${stat3.label}</div>
+          <div style="font-size:17px;font-weight:700;color:${stat3.color};margin:2px 0;">${stat3.val}<span style="font-size:10px;font-weight:400;margin-left:2px;">${stat3.unit}</span></div>
+        </div>
+      </div>
+    </div>
+
+    ${sub.id === 'reservoirs' ? `
+      <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:12px;padding:12px;margin-bottom:12px;font-size:11px;color:#0369a1;">
+        <strong>🏞️ อ่างเก็บน้ำหลัก 35 แห่ง:</strong> หมุดสีน้ำเงินบนแผนที่แสดงระดับน้ำกักเก็บจริงของเขื่อนภูมิพล, สิริกิติ์, ศรีนครินทร์ ฯลฯ คลิกที่หมุดเพื่อดูปริมาณน้ำ MCM
+      </div>
+    ` : ''}
+
+    ${sub.id === 'water_stations' || sub.id === 'waste_detection' ? `
+      <div style="background:#faf5ff;border:1px solid #e9d5ff;border-radius:12px;padding:12px;margin-bottom:12px;font-size:11px;color:#6b21a8;">
+        <strong>🔬 สถานีตรวจวัด กทม. & AI ขยะ:</strong> หมุดสีม่วง/แดงในแม่น้ำเจ้าพระยาและคลองแสนแสบแสดงค่า DO, pH และการเตือนขยะสะสม
+      </div>
+    ` : ''}
+
+    ${sub.id === 'fire_hotspots' ? `
+      <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:12px;padding:12px;margin-bottom:12px;font-size:11px;color:#991b1b;">
+        <strong>🔥 ดาวเทียมตรวจจับความร้อนสด:</strong> หมุดสีแดงกะพริบแสดงจุดความร้อนที่ตรวจพบโดยดาวเทียม NASA VIIRS ในรอบ 24 ชั่วโมง
+      </div>
+    ` : ''}
+
+    <!-- Province list header -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+      <div style="font-size:13px;font-weight:700;color:#0f172a;">${list.length} จังหวัดที่ตรงเงื่อนไข</div>
+      <div style="font-size:11px;color:#94a3b8;">คลิกเพื่อเจาะลึก</div>
+    </div>
+
+    <!-- Province list -->
+    <div style="display:flex;flex-direction:column;gap:6px;">
+      ${list.map(p => {
+        const col = getLayerColor(p);
+        let valDisplay = `${p.waterScore}`;
+        let subText = `${p.region} · 💧${p.storagePercent}%`;
+
+        if (activeSubcategoryId === 'pm25') {
+          valDisplay = `${p.pm25} µg`;
+          subText = `AQI: ${p.aqi} · ${p.region}`;
+        } else if (activeSubcategoryId === 'aqi') {
+          valDisplay = `AQI ${p.aqi}`;
+          subText = `PM2.5: ${p.pm25} µg/m³`;
+        } else if (activeSubcategoryId === 'wqi') {
+          valDisplay = `WQI ${p.wqi}`;
+          subText = `คุณภาพน้ำผิวดิน · ${p.region}`;
+        } else if (activeSubcategoryId === 'ndvi') {
+          valDisplay = `NDVI ${p.ndvi}`;
+          subText = `อุณหภูมิดิน ${p.lst}°C`;
+        } else if (activeSubcategoryId === 'flood_risk') {
+          valDisplay = p.floodRiskLabel;
+          subText = `ฝนสะสม ${p.rainfall} มม.`;
+        }
+
+        return `
+          <div onclick="selectProvinceByName('${p.name}')"
+            style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:#fff;border:1px solid #f1f5f9;border-radius:11px;cursor:pointer;transition:all 0.15s;"
+            onmouseover="this.style.borderColor='#e0f2fe';this.style.background='#f0f9ff';"
+            onmouseout="this.style.borderColor='#f1f5f9';this.style.background='#fff';">
+            <div style="display:flex;align-items:center;gap:10px;min-width:0;">
+              <div style="width:10px;height:10px;border-radius:50%;background:${col};flex-shrink:0;"></div>
+              <div style="min-width:0;">
+                <div style="font-size:13px;font-weight:600;color:#0f172a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                  ${p.name_th} <span style="font-size:11px;font-weight:400;color:#94a3b8;">${p.name}</span>
+                </div>
+                <div style="font-size:11px;color:#64748b;margin-top:1px;">${subText}</div>
+              </div>
+            </div>
+            <div style="font-size:11px;font-weight:700;padding:3px 9px;border-radius:7px;background:${col}18;color:${col};white-space:nowrap;">
+              ${valDisplay}
+            </div>
+          </div>
+        `;
+      }).join('')}
+    </div>
+  `;
+}
+
+function selectProvince(p, layer) {
+  selectedProvince = p;
+  enrichProvinceData(p);
+
+  if (layer?.getBounds) {
+    map.fitBounds(layer.getBounds(), { padding: [50, 50], maxZoom: 12 });
+  }
+
+  const sub = getActiveSubcategory();
+  const color = getLayerColor(p);
+  const content = document.getElementById('sidebar-content');
+
+  let customAdvisory = p.advisory;
+  if (activeCategoryId === 'air') {
+    if (p.pm25 > 75) customAdvisory = '🔴 วิกฤต: งดกิจกรรมกลางแจ้งทุกชนิด สวมหน้ากาก N95 ตลอดเวลาเมื่ออยู่นอกอาคาร และเปิดเครื่องฟอกอากาศในที่พักอาศัย';
+    else if (p.pm25 > 37.5) customAdvisory = '🟠 เริ่มมีผลต่อสุขภาพ: เด็ก คนชรา และผู้มีโรคประจำตัวระบบทางเดินหายใจควรลดเวลาทำกิจกรรมกลางแจ้ง และสวมหน้ากากป้องกัน';
+    else customAdvisory = '🟢 คุณภาพอากาศดี: เหมาะสำหรับกิจกรรมกลางแจ้ง ออกกำลังกาย และการใช้ชีวิตประจำวันตามปกติ';
+  } else if (sub.id === 'flood_risk') {
+    if (p.floodRisk === 'critical') customAdvisory = '🌊 พื้นที่เฝ้าระวังน้ำหลากและท่วมซ้ำซาก: ตรวจสอบระดับน้ำในแม่น้ำสายหลัก ยกสิ่งของขึ้นที่สูง และติดตามประกาศเตือนภัยจาก ปภ.';
+    else customAdvisory = '🟢 ความเสี่ยงน้ำท่วมต่ำ: การระบายน้ำอยู่ในเกณฑ์ปกติ';
+  }
+
+  content.innerHTML = `
+    <!-- Back to Overview -->
+    <button onclick="renderDefaultView()"
+      style="display:flex;align-items:center;gap:5px;font-size:12px;color:#64748b;background:none;border:none;cursor:pointer;padding:0;margin-bottom:12px;font-weight:500;">
+      ← กลับสู่ภาพรวมประเทศ
+    </button>
+
+    <!-- Province Header -->
+    <div style="margin-bottom:14px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+        <div style="display:flex;align-items:center;gap:7px;">
+          <div style="width:12px;height:12px;border-radius:50%;background:${color};"></div>
+          <span style="font-size:12px;font-weight:700;color:${color};">${p.name_th}</span>
+          <span style="font-size:11px;color:#94a3b8;">· ${p.region}</span>
+        </div>
+        <span class="${sub.currency === 'realtime' ? 'badge-realtime' : 'badge-periodic'}">${sub.currencyLabel}</span>
+      </div>
+      <div style="font-size:24px;font-weight:800;color:#0f172a;">${p.name_th}</div>
+      <div style="font-size:13px;color:#64748b;">${p.name} · ${p.landUseLabel}</div>
+    </div>
+
+    <!-- Live & Periodic Key Metrics Grid -->
+    <div style="background:linear-gradient(135deg,#0f172a,#0c1a2e);border-radius:16px;padding:16px;margin-bottom:12px;border:1px solid rgba(255,255,255,0.08);">
+      <div style="font-size:10px;text-transform:uppercase;letter-spacing:0.08em;color:#38bdf8;font-weight:700;margin-bottom:10px;">
+        ตัวชี้วัดสิ่งแวดล้อมสำคัญ
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;text-align:center;">
+        <div style="background:rgba(255,255,255,0.05);border-radius:10px;padding:10px;">
+          <div style="font-size:10px;color:#94a3b8;">PM 2.5 สด</div>
+          <div id="prov-pm25-val" style="font-size:16px;font-weight:700;color:#38bdf8;margin:2px 0;">${p.pm25}<span style="font-size:9px;font-weight:400;margin-left:2px;">µg</span></div>
+          <div style="font-size:9px;color:#64748b;">AQI: ${p.aqi}</div>
+        </div>
+        <div style="background:rgba(255,255,255,0.05);border-radius:10px;padding:10px;">
+          <div style="font-size:10px;color:#94a3b8;">น้ำกักเก็บ</div>
+          <div style="font-size:16px;font-weight:700;color:#34d399;margin:2px 0;">${p.storagePercent}<span style="font-size:9px;font-weight:400;margin-left:2px;">%</span></div>
+          <div style="font-size:9px;color:#64748b;">คะแนน: ${p.waterScore}</div>
+        </div>
+        <div style="background:rgba(255,255,255,0.05);border-radius:10px;padding:10px;">
+          <div style="font-size:10px;color:#94a3b8;">อุณหภูมิดิน</div>
+          <div style="font-size:16px;font-weight:700;color:#fbbf24;margin:2px 0;">${p.lst}<span style="font-size:9px;font-weight:400;margin-left:2px;">°C</span></div>
+          <div style="font-size:9px;color:#64748b;">NDVI: ${p.ndvi}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Active Indicator Specific Gauge -->
+    <div style="background:#fff;border:1px solid #f1f5f9;border-radius:14px;padding:14px;margin-bottom:12px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+        <div style="font-size:13px;font-weight:700;color:#0f172a;">${sub.name}</div>
+        <div style="font-size:16px;font-weight:800;color:${color};">
+          ${activeSubcategoryId === 'pm25' ? p.pm25 + ' µg/m³' : (activeSubcategoryId === 'aqi' ? 'AQI ' + p.aqi : p.waterScore + ' / 100')}
+        </div>
+      </div>
+      <div style="height:6px;background:#f1f5f9;border-radius:4px;overflow:hidden;margin-bottom:8px;">
+        <div style="height:100%;width:${Math.min(100, p.waterScore)}%;background:${color};border-radius:4px;transition:width 0.6s;"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:#64748b;">
+        <span>ที่มา: ${sub.source}</span>
+        <span>ฝนสัปดาห์นี้: <strong>${p.rainfall} มม.</strong></span>
+      </div>
+    </div>
+
+    <!-- Trend Chart -->
+    <div style="background:#fff;border:1px solid #f1f5f9;border-radius:14px;padding:14px;margin-bottom:12px;">
+      <div style="font-size:13px;font-weight:700;color:#0f172a;margin-bottom:8px;">แนวโน้มรอบสัปดาห์ (7 วัน)</div>
+      <div style="height:140px;"><canvas id="provinceChart"></canvas></div>
+    </div>
+
+    <!-- Citizen Advisory -->
+    <div style="padding:14px;border-radius:14px;border:1px solid ${color}35;background:${color}0d;margin-bottom:4px;">
+      <div style="font-size:12px;font-weight:700;color:${color};margin-bottom:4px;display:flex;align-items:center;gap:5px;">
+        <span>💡</span> คำแนะนำสำหรับประชาชน
+      </div>
+      <p style="font-size:12px;color:#374151;line-height:1.6;margin:0;">${customAdvisory}</p>
+    </div>
+  `;
+
+  setTimeout(() => initProvinceChart(p), 80);
+}
+
+function selectProvinceByName(name) {
+  if (typeof THAILAND_PROVINCES_GEOJSON === 'undefined') return;
+  const feat = THAILAND_PROVINCES_GEOJSON.features.find(f => f.properties.name === name);
+  if (!feat) return;
+  let targetLayer = null;
+  if (provinceLayerGroup) {
+    provinceLayerGroup.eachLayer(l => {
+      if (l.feature?.properties.name === name) targetLayer = l;
+    });
+  }
+  selectProvince(feat.properties, targetLayer);
+}
+
+function initProvinceChart(p) {
+  const ctx = document.getElementById('provinceChart');
+  if (!ctx) return;
+  if (currentChart) currentChart.destroy();
+
+  const isAir = activeCategoryId === 'air';
+  let labels = ['จ','อ','พ','พฤ','ศ','ส','อา'];
+  let ds1Label = isAir ? 'PM 2.5 (µg/m³)' : 'ความต้องการน้ำ (มม.)';
+  let ds2Label = isAir ? 'เกณฑ์มาตรฐาน PCD (37.5)' : 'ฝนตกสะสม (มม.)';
+
+  const baseVal = isAir ? p.pm25 : p.et;
+  const d1 = isAir ? [baseVal*0.9, baseVal*1.1, baseVal*1.05, baseVal*0.95, baseVal*1.02, baseVal*1.15, baseVal]
+                   : [baseVal, baseVal*1.04, baseVal*0.98, baseVal*1.02, baseVal*0.95, baseVal*1.01, baseVal];
+  const d2 = isAir ? [37.5, 37.5, 37.5, 37.5, 37.5, 37.5, 37.5]
+                   : [(p.rainfall/7)*0.4, (p.rainfall/7)*1.5, (p.rainfall/7)*2.1, (p.rainfall/7)*1.2, (p.rainfall/7)*0.8, (p.rainfall/7)*0.2, 0];
+
+  currentChart = new Chart(ctx, {
+    type: isAir ? 'line' : 'bar',
+    data: {
+      labels: labels,
+      datasets: [
+        {
+          label: ds1Label,
+          data: d1,
+          borderColor: 'rgba(14,165,233,1)',
+          backgroundColor: isAir ? 'rgba(14,165,233,0.1)' : 'rgba(14,165,233,0.65)',
+          fill: isAir,
+          tension: 0.3,
+          borderRadius: 4
+        },
+        {
+          label: ds2Label,
+          data: d2,
+          borderColor: isAir ? 'rgba(239,68,68,0.8)' : 'rgba(52,211,153,1)',
+          backgroundColor: isAir ? 'transparent' : 'rgba(52,211,153,0.65)',
+          borderDash: isAir ? [4, 4] : [],
+          borderRadius: 4
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { labels: { font: { size: 10, family: 'Inter' }, boxWidth: 10 } }
+      },
+      scales: {
+        y: { beginAtZero: true, ticks: { font: { size: 9 } }, grid: { color: '#f1f5f9' } },
+        x: { ticks: { font: { size: 9, family: 'Inter' } }, grid: { display: false } }
+      }
+    }
+  });
+}
+
+// ═══════════════════════════════════════════════════════
+//  SEARCH & UTILS
+// ═══════════════════════════════════════════════════════
+function handleSearch(e) {
+  if (e.key !== 'Enter') return;
+  const q = e.target.value.toLowerCase().trim();
+  if (!q) return;
+
+  if (typeof THAILAND_PROVINCES_GEOJSON !== 'undefined') {
+    const match = THAILAND_PROVINCES_GEOJSON.features.find(f => {
+      const p = f.properties;
+      return p.name_th.toLowerCase().includes(q) || p.name.toLowerCase().includes(q);
+    });
+    if (match) {
+      selectProvinceByName(match.properties.name);
+      return;
+    }
+  }
+  alert(`ไม่พบข้อมูลสำหรับ "${q}" — โปรดลองค้นหาชื่อจังหวัด เช่น เชียงใหม่, อยุธยา, สุราษฎร์ธานี`);
+}
+
+function openLimitationsModal()  { document.getElementById('limitations-modal').style.display = 'flex'; }
+function closeLimitationsModal() { document.getElementById('limitations-modal').style.display = 'none'; }
+
+// ═══════════════════════════════════════════════════════
+//  BOOT
+// ═══════════════════════════════════════════════════════
+loadThailandMask();
+loadThailandBorder();
+loadThailandProvinces();
+initRainViewerRadar();
+
+// Initialize expandable dropdown navigation & initial sub-tab
+renderDropdownMenu();
+selectSubcategory('air', 'pm25');
+  </script>
+
+    <div id="err-report" style="display:none;"></div>
+    <script>
+    window.addEventListener('load', function() {
+        var el = document.getElementById("err-report");
+        if (window.__errors && window.__errors.length) {
+            el.textContent = "ERRORS:" + JSON.stringify(window.__errors);
+            el.style.display = "block";
+        } else {
+            el.textContent = "NO_ERRORS";
+            el.style.display = "block";
+        }
+    });
+    </script>
+    </body>
+</html>

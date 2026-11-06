@@ -1,0 +1,3 @@
+﻿581: '\n'
+582: "L.control.zoom({ position: 'bottomleft' }).addTo(map);\n"
+583: '\n'
